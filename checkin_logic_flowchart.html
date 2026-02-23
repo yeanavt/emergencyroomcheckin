@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>check_in() Logic Flowchart</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Instrument+Serif&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f0e8;
+  --ink: #1a1a2e;
+  --ink-light: #4a4a5e;
+  --ink-faint: #8a8a9e;
+  --paper: #fffdf7;
+  --grid: rgba(26,26,46,0.06);
+  --blue: #2563eb;
+  --blue-bg: rgba(37,99,235,0.08);
+  --red: #dc2626;
+  --red-bg: rgba(220,38,38,0.07);
+  --green: #16a34a;
+  --green-bg: rgba(22,163,74,0.07);
+  --amber: #d97706;
+  --amber-bg: rgba(217,119,6,0.07);
+  --purple: #7c3aed;
+  --purple-bg: rgba(124,58,237,0.07);
+  --teal: #0d9488;
+  --teal-bg: rgba(13,148,136,0.07);
+  --decision: #fbbf24;
+  --decision-border: #b45309;
+  --action: var(--paper);
+  --action-border: var(--ink);
+  --terminal: #e0e7ff;
+  --terminal-border: #4338ca;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'JetBrains Mono', monospace;
+  min-height: 100vh;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+header {
+  text-align: center;
+  padding: 2rem 1rem 0.8rem;
+  border-bottom: 2px solid var(--ink);
+  background: var(--paper);
+  position: relative;
+}
+header::before {
+  content: 'FLOWCHART';
+  position: absolute;
+  top: 10px; right: 16px;
+  font-size: 0.55rem;
+  letter-spacing: 3px;
+  color: var(--ink-faint);
+}
+h1 {
+  font-family: 'Instrument Serif', serif;
+  font-size: 1.8rem;
+  font-weight: 400;
+  letter-spacing: -0.5px;
+  color: var(--ink);
+}
+.subtitle {
+  font-size: 0.72rem;
+  color: var(--ink-light);
+  margin-top: 0.3rem;
+}
+
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  flex-wrap: wrap;
+  background: var(--paper);
+  border-bottom: 1px solid rgba(26,26,46,0.12);
+}
+.ctrl-label {
+  font-size: 0.65rem;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  align-self: center;
+  margin-right: 0.3rem;
+}
+.path-btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  padding: 0.4rem 0.9rem;
+  border: 1.5px solid var(--ink-faint);
+  background: var(--paper);
+  color: var(--ink-light);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.path-btn:hover { border-color: var(--ink); color: var(--ink); }
+.path-btn.active-reject { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+.path-btn.active-jack { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+.path-btn.active-jose { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
+.path-btn.active-mary { border-color: var(--purple); color: var(--purple); background: var(--purple-bg); }
+.path-btn.active-jay { border-color: var(--teal); color: var(--teal); background: var(--teal-bg); }
+.path-btn.active-none { border-color: var(--ink); color: var(--ink); background: rgba(26,26,46,0.06); }
+
+.chart-wrap {
+  overflow: auto;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+svg text {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Flowchart node styles */
+.fc-decision {
+  fill: #fffbeb;
+  stroke: var(--decision-border);
+  stroke-width: 2;
+  transition: all 0.3s;
+}
+.fc-action {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  rx: 6;
+  transition: all 0.3s;
+}
+.fc-terminal {
+  fill: var(--terminal);
+  stroke: var(--terminal-border);
+  stroke-width: 2;
+  rx: 20;
+  transition: all 0.3s;
+}
+.fc-loop {
+  fill: #f0fdf4;
+  stroke: var(--green);
+  stroke-width: 2;
+  transition: all 0.3s;
+}
+.fc-arrow {
+  stroke: var(--ink-faint);
+  stroke-width: 1.5;
+  fill: none;
+  marker-end: url(#arrowhead);
+  transition: all 0.3s;
+}
+.fc-label-yes { fill: var(--green); font-size: 10px; font-weight: 700; }
+.fc-label-no { fill: var(--red); font-size: 10px; font-weight: 700; }
+.fc-line-num { fill: var(--ink-faint); font-size: 8.5px; font-weight: 600; }
+.fc-title { fill: var(--ink); font-size: 11px; font-weight: 600; }
+.fc-detail { fill: var(--ink-light); font-size: 9px; }
+.fc-code { fill: var(--ink); font-size: 8.5px; font-style: italic; }
+
+/* Highlight classes */
+.hl-on .fc-decision,
+.hl-on .fc-action,
+.hl-on .fc-terminal,
+.hl-on .fc-loop { stroke-width: 3; }
+.hl-on .fc-arrow { stroke-width: 2.5; }
+
+.hl-reject .fc-decision, .hl-reject .fc-action, .hl-reject .fc-terminal { stroke: var(--red); }
+.hl-reject .fc-arrow { stroke: var(--red); }
+
+.hl-jack .fc-decision, .hl-jack .fc-action, .hl-jack .fc-terminal { stroke: var(--green); }
+.hl-jack .fc-arrow { stroke: var(--green); }
+
+.hl-jose .fc-decision, .hl-jose .fc-action, .hl-jose .fc-terminal { stroke: var(--blue); }
+.hl-jose .fc-arrow { stroke: var(--blue); }
+
+.hl-mary .fc-decision, .hl-mary .fc-action, .hl-mary .fc-terminal, .hl-mary .fc-loop { stroke: var(--purple); }
+.hl-mary .fc-arrow { stroke: var(--purple); }
+
+.hl-jay .fc-decision, .hl-jay .fc-action, .hl-jay .fc-terminal, .hl-jay .fc-loop { stroke: var(--teal); }
+.hl-jay .fc-arrow { stroke: var(--teal); }
+
+.dimmed { opacity: 0.15; }
+
+/* Legend */
+.legend-bar {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  padding: 0.8rem;
+  background: var(--paper);
+  border-top: 1px solid rgba(26,26,46,0.12);
+  flex-wrap: wrap;
+  font-size: 0.6rem;
+  color: var(--ink-light);
+}
+.legend-item { display: flex; align-items: center; gap: 5px; }
+.lg-diamond { width: 12px; height: 12px; background: #fffbeb; border: 1.5px solid var(--decision-border); transform: rotate(45deg); }
+.lg-rect { width: 14px; height: 10px; background: var(--paper); border: 1.5px solid var(--ink); border-radius: 2px; }
+.lg-pill { width: 14px; height: 10px; background: var(--terminal); border: 1.5px solid var(--terminal-border); border-radius: 5px; }
+.lg-loop { width: 14px; height: 10px; background: #f0fdf4; border: 1.5px solid var(--green); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>check_in() — Insertion Logic Path</h1>
+  <div class="subtitle">Line-by-line branch map of the ER priority queue sorted insertion</div>
+</header>
+
+<div class="controls">
+  <span class="ctrl-label">Highlight path:</span>
+  <button class="path-btn" onclick="highlight('none')" id="btn-none">All paths</button>
+  <button class="path-btn" onclick="highlight('reject')" id="btn-reject">Reject (L86)</button>
+  <button class="path-btn" onclick="highlight('jack')" id="btn-jack">Jack (5)</button>
+  <button class="path-btn" onclick="highlight('jose')" id="btn-jose">Jose/Chris</button>
+  <button class="path-btn" onclick="highlight('mary')" id="btn-mary">Mary (6)</button>
+  <button class="path-btn" onclick="highlight('jay')" id="btn-jay">Jay (2)</button>
+</div>
+
+<div class="chart-wrap">
+<svg width="720" height="1420" viewBox="0 0 720 1420" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#8a8a9e"/>
+    </marker>
+    <marker id="arrowhead-red" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#dc2626"/>
+    </marker>
+    <marker id="arrowhead-green" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#16a34a"/>
+    </marker>
+    <marker id="arrowhead-blue" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#2563eb"/>
+    </marker>
+    <marker id="arrowhead-purple" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#7c3aed"/>
+    </marker>
+    <marker id="arrowhead-teal" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#0d9488"/>
+    </marker>
+  </defs>
+
+  <!-- =================== -->
+  <!--  START TERMINAL      -->
+  <!-- =================== -->
+  <g id="n-start" data-paths="reject,jack,jose,mary,jay">
+    <rect class="fc-terminal" x="260" y="20" width="200" height="44" rx="22"/>
+    <text class="fc-title" x="360" y="40" text-anchor="middle">check_in(fname, pain)</text>
+    <text class="fc-detail" x="360" y="52" text-anchor="middle">Line 76</text>
+  </g>
+
+  <!-- Arrow: start → create node -->
+  <g id="a-start-create" data-paths="reject,jack,jose,mary,jay">
+    <line class="fc-arrow" x1="360" y1="64" x2="360" y2="88"/>
+  </g>
+
+  <!-- CREATE NODE -->
+  <g id="n-create" data-paths="reject,jack,jose,mary,jay">
+    <rect class="fc-action" x="235" y="88" width="250" height="42"/>
+    <text class="fc-title" x="360" y="105" text-anchor="middle">Create newnode</text>
+    <text class="fc-code" x="360" y="120" text-anchor="middle">newnode = create(); set fname, pain</text>
+    <text class="fc-line-num" x="490" y="100">L80–82</text>
+  </g>
+
+  <!-- Arrow: create → D1 -->
+  <g id="a-create-d1" data-paths="reject,jack,jose,mary,jay">
+    <line class="fc-arrow" x1="360" y1="130" x2="360" y2="162"/>
+  </g>
+
+  <!-- =================== -->
+  <!--  DECISION 1: reject  -->
+  <!-- =================== -->
+  <g id="n-d1" data-paths="reject,jack,jose,mary,jay">
+    <polygon class="fc-decision" points="360,162 500,210 360,258 220,210"/>
+    <text class="fc-title" x="360" y="204" text-anchor="middle">newnode==NULL</text>
+    <text class="fc-title" x="360" y="216" text-anchor="middle">|| fname=="" || pain==0?</text>
+    <text class="fc-line-num" x="505" y="206">L86</text>
+  </g>
+
+  <!-- YES → reject terminal (right) -->
+  <g id="a-d1-reject" data-paths="reject">
+    <line class="fc-arrow" x1="500" y1="210" x2="610" y2="210"/>
+    <text class="fc-label-yes" x="520" y="204">YES</text>
+  </g>
+  <g id="n-reject" data-paths="reject">
+    <rect class="fc-terminal" x="610" y="192" width="100" height="36" rx="18"/>
+    <text class="fc-title" x="660" y="214" text-anchor="middle" style="fill:var(--red)">return false</text>
+    <text class="fc-line-num" x="660" y="225" text-anchor="middle">L88</text>
+  </g>
+
+  <!-- NO → D2 -->
+  <g id="a-d1-d2" data-paths="jack,jose,mary,jay">
+    <line class="fc-arrow" x1="360" y1="258" x2="360" y2="292"/>
+    <text class="fc-label-no" x="367" y="280">NO</text>
+  </g>
+
+  <!-- =================== -->
+  <!--  DECISION 2: empty?  -->
+  <!-- =================== -->
+  <g id="n-d2" data-paths="jack,jose,mary,jay">
+    <polygon class="fc-decision" points="360,292 480,332 360,372 240,332"/>
+    <text class="fc-title" x="360" y="330" text-anchor="middle">head == NULL?</text>
+    <text class="fc-detail" x="360" y="343" text-anchor="middle">(list empty?)</text>
+    <text class="fc-line-num" x="485" y="330">L91</text>
+  </g>
+
+  <!-- YES → Case 2: insert as head (left) -->
+  <g id="a-d2-case2" data-paths="jack">
+    <line class="fc-arrow" x1="240" y1="332" x2="108" y2="332"/>
+    <text class="fc-label-yes" x="195" y="326">YES</text>
+  </g>
+  <g id="n-case2" data-paths="jack">
+    <rect class="fc-action" x="8" y="312" width="200" height="52"/>
+    <text class="fc-title" x="108" y="330" text-anchor="middle" style="fill:var(--green)">Case 2: Insert as head</text>
+    <text class="fc-code" x="108" y="344" text-anchor="middle">newnode→next = head</text>
+    <text class="fc-code" x="108" y="356" text-anchor="middle">head = newnode</text>
+    <text class="fc-line-num" x="213" y="324">L94–95</text>
+  </g>
+  <!-- Case 2 → return true -->
+  <g id="a-case2-ret" data-paths="jack">
+    <line class="fc-arrow" x1="108" y1="364" x2="108" y2="1370"/>
+    <line class="fc-arrow" x1="108" y1="1370" x2="310" y2="1370"/>
+  </g>
+
+  <!-- NO → set compare = head -->
+  <g id="a-d2-setcmp" data-paths="jose,mary,jay">
+    <line class="fc-arrow" x1="360" y1="372" x2="360" y2="404"/>
+    <text class="fc-label-no" x="367" y="394">NO</text>
+  </g>
+
+  <!-- SET compare = head -->
+  <g id="n-setcmp" data-paths="jose,mary,jay">
+    <rect class="fc-action" x="255" y="404" width="210" height="36"/>
+    <text class="fc-title" x="360" y="420" text-anchor="middle">compare = head</text>
+    <text class="fc-detail" x="360" y="432" text-anchor="middle">begin traversal setup</text>
+    <text class="fc-line-num" x="470" y="418">L106</text>
+  </g>
+
+  <!-- Arrow → D3 -->
+  <g id="a-setcmp-d3" data-paths="jose,mary,jay">
+    <line class="fc-arrow" x1="360" y1="440" x2="360" y2="472"/>
+  </g>
+
+  <!-- =================== -->
+  <!--  DECISION 3: > head? -->
+  <!-- =================== -->
+  <g id="n-d3" data-paths="jose,mary,jay">
+    <polygon class="fc-decision" points="360,472 496,518 360,564 224,518"/>
+    <text class="fc-title" x="360" y="512" text-anchor="middle">pain > compare→pain?</text>
+    <text class="fc-detail" x="360" y="526" text-anchor="middle">(higher than head?)</text>
+    <text class="fc-line-num" x="501" y="514">L107</text>
+  </g>
+
+  <!-- YES → Case 3a: insert at front (left) -->
+  <g id="a-d3-case3a" data-paths="jose">
+    <line class="fc-arrow" x1="224" y1="518" x2="108" y2="518"/>
+    <text class="fc-label-yes" x="178" y="512">YES</text>
+  </g>
+  <g id="n-case3a" data-paths="jose">
+    <rect class="fc-action" x="8" y="496" width="200" height="56"/>
+    <text class="fc-title" x="108" y="514" text-anchor="middle" style="fill:var(--blue)">Case 3a: New head</text>
+    <text class="fc-code" x="108" y="528" text-anchor="middle">newnode→next = head</text>
+    <text class="fc-code" x="108" y="540" text-anchor="middle">head = newnode</text>
+    <text class="fc-line-num" x="213" y="508">L109–110</text>
+  </g>
+  <!-- Case 3a → return true -->
+  <g id="a-case3a-ret" data-paths="jose">
+    <line class="fc-arrow" x1="8" y1="524" x2="-2" y2="524"/>
+    <line class="fc-arrow" x1="-2" y1="524" x2="-2" y2="1370"/>
+    <line class="fc-arrow" x1="-2" y1="1370" x2="310" y2="1370"/>
+  </g>
+
+  <!-- NO → init compare2 -->
+  <g id="a-d3-initc2" data-paths="mary,jay">
+    <line class="fc-arrow" x1="360" y1="564" x2="360" y2="596"/>
+    <text class="fc-label-no" x="367" y="584">NO</text>
+  </g>
+
+  <!-- INIT compare2 = NULL -->
+  <g id="n-initc2" data-paths="mary,jay">
+    <rect class="fc-action" x="255" y="596" width="210" height="36"/>
+    <text class="fc-title" x="360" y="612" text-anchor="middle">compare2 = NULL</text>
+    <text class="fc-detail" x="360" y="624" text-anchor="middle">trailing pointer init</text>
+    <text class="fc-line-num" x="470" y="610">L115</text>
+  </g>
+
+  <!-- Arrow → while loop -->
+  <g id="a-initc2-while" data-paths="mary,jay">
+    <line class="fc-arrow" x1="360" y1="632" x2="360" y2="666"/>
+  </g>
+
+  <!-- =================== -->
+  <!--  WHILE LOOP          -->
+  <!-- =================== -->
+  <g id="n-while" data-paths="mary,jay">
+    <polygon class="fc-decision" points="360,666 530,722 360,778 190,722"/>
+    <text class="fc-title" x="360" y="712" text-anchor="middle">pain &lt;= compare→pain</text>
+    <text class="fc-title" x="360" y="726" text-anchor="middle">&amp;&amp; compare→next != NULL?</text>
+    <text class="fc-detail" x="360" y="740" text-anchor="middle">(while loop condition)</text>
+    <text class="fc-line-num" x="535" y="718">L116</text>
+  </g>
+
+  <!-- YES (loop) → advance pointers → loop back -->
+  <g id="a-while-body" data-paths="mary,jay">
+    <line class="fc-arrow" x1="530" y1="722" x2="620" y2="722"/>
+    <text class="fc-label-yes" x="545" y="716">YES</text>
+  </g>
+  <g id="n-advance" data-paths="mary,jay">
+    <rect class="fc-loop" x="620" y="694" width="90" height="56" rx="6"/>
+    <text class="fc-title" x="665" y="714" text-anchor="middle" style="font-size:9px">compare2</text>
+    <text class="fc-title" x="665" y="726" text-anchor="middle" style="font-size:9px">= compare</text>
+    <text class="fc-title" x="665" y="740" text-anchor="middle" style="font-size:9px">compare</text>
+    <text class="fc-title" x="665" y="752" text-anchor="middle" style="font-size:9px">= →next</text>
+    <text class="fc-line-num" x="665" y="688" text-anchor="middle">L119–120</text>
+  </g>
+  <!-- Loop back arrow -->
+  <g id="a-loopback" data-paths="mary,jay">
+    <polyline class="fc-arrow" points="665,694 665,652 360,652 360,666" fill="none"/>
+  </g>
+
+  <!-- NO (exit loop) → D4 -->
+  <g id="a-while-d4" data-paths="mary,jay">
+    <line class="fc-arrow" x1="360" y1="778" x2="360" y2="822"/>
+    <text class="fc-label-no" x="367" y="804">NO</text>
+  </g>
+
+  <!-- =================== -->
+  <!--  DECISION 4          -->
+  <!-- =================== -->
+  <g id="n-d4" data-paths="mary,jay">
+    <polygon class="fc-decision" points="360,822 500,870 360,918 220,870"/>
+    <text class="fc-title" x="360" y="864" text-anchor="middle">pain > compare→pain?</text>
+    <text class="fc-detail" x="360" y="878" text-anchor="middle">(found lower-pain node?)</text>
+    <text class="fc-line-num" x="505" y="866">L126</text>
+  </g>
+
+  <!-- YES → Case 3b-i: insert mid-list (left) -->
+  <g id="a-d4-case3bi" data-paths="mary">
+    <line class="fc-arrow" x1="220" y1="870" x2="108" y2="870"/>
+    <text class="fc-label-yes" x="175" y="864">YES</text>
+  </g>
+  <g id="n-case3bi" data-paths="mary">
+    <rect class="fc-action" x="8" y="844" width="200" height="64"/>
+    <text class="fc-title" x="108" y="860" text-anchor="middle" style="fill:var(--purple)">Case 3b-i: Mid-list</text>
+    <text class="fc-detail" x="108" y="874" text-anchor="middle">insert between compare2 &amp; compare</text>
+    <text class="fc-code" x="108" y="888" text-anchor="middle">compare2→next = newnode</text>
+    <text class="fc-code" x="108" y="900" text-anchor="middle">newnode→next = compare</text>
+    <text class="fc-line-num" x="213" y="856">L128–129</text>
+  </g>
+  <!-- Case 3b-i → return true -->
+  <g id="a-case3bi-ret" data-paths="mary">
+    <line class="fc-arrow" x1="108" y1="908" x2="108" y2="1370"/>
+    <line class="fc-arrow" x1="108" y1="1370" x2="310" y2="1370"/>
+  </g>
+
+  <!-- NO → D5 -->
+  <g id="a-d4-d5" data-paths="jay">
+    <line class="fc-arrow" x1="360" y1="918" x2="360" y2="962"/>
+    <text class="fc-label-no" x="367" y="944">NO</text>
+  </g>
+
+  <!-- =================== -->
+  <!--  DECISION 5          -->
+  <!-- =================== -->
+  <g id="n-d5" data-paths="jay">
+    <polygon class="fc-decision" points="360,962 530,1018 360,1074 190,1018"/>
+    <text class="fc-title" x="360" y="1008" text-anchor="middle">compare→next == NULL</text>
+    <text class="fc-title" x="360" y="1022" text-anchor="middle">&amp;&amp; compare→pain >= pain?</text>
+    <text class="fc-detail" x="360" y="1038" text-anchor="middle">(reached tail?)</text>
+    <text class="fc-line-num" x="535" y="1014">L136</text>
+  </g>
+
+  <!-- YES → Case 3b-ii: append at tail -->
+  <g id="a-d5-case3bii" data-paths="jay">
+    <line class="fc-arrow" x1="360" y1="1074" x2="360" y2="1110"/>
+    <text class="fc-label-yes" x="367" y="1096">YES</text>
+  </g>
+  <g id="n-case3bii" data-paths="jay">
+    <rect class="fc-action" x="245" y="1110" width="230" height="64"/>
+    <text class="fc-title" x="360" y="1126" text-anchor="middle" style="fill:var(--teal)">Case 3b-ii: Append at tail</text>
+    <text class="fc-detail" x="360" y="1140" text-anchor="middle">lowest pain → end of list</text>
+    <text class="fc-code" x="360" y="1154" text-anchor="middle">newnode→next = NULL</text>
+    <text class="fc-code" x="360" y="1166" text-anchor="middle">compare→next = newnode</text>
+    <text class="fc-line-num" x="480" y="1122">L138–139</text>
+  </g>
+
+  <!-- Case 3b-ii → return true -->
+  <g id="a-case3bii-ret" data-paths="jay">
+    <line class="fc-arrow" x1="360" y1="1174" x2="360" y2="1350"/>
+  </g>
+
+  <!-- NO → Case 3b-iii (right side) -->
+  <g id="a-d5-case3biii" data-paths="">
+    <line class="fc-arrow" x1="530" y1="1018" x2="620" y2="1018"/>
+    <text class="fc-label-no" x="545" y="1012">NO</text>
+  </g>
+  <g id="n-case3biii" data-paths="">
+    <rect class="fc-action" x="620" y="988" width="90" height="68" rx="6"/>
+    <text class="fc-title" x="665" y="1006" text-anchor="middle" style="font-size:8px;fill:var(--amber)">Case 3b-iii</text>
+    <text class="fc-detail" x="665" y="1018" text-anchor="middle" style="font-size:7px">tie at non-tail</text>
+    <text class="fc-code" x="665" y="1032" text-anchor="middle" style="font-size:7px">newnode→next</text>
+    <text class="fc-code" x="665" y="1042" text-anchor="middle" style="font-size:7px">= compare</text>
+    <text class="fc-code" x="665" y="1052" text-anchor="middle" style="font-size:7px">compare2→next</text>
+    <text class="fc-code" x="665" y="1062" text-anchor="middle" style="font-size:7px">= newnode</text>
+    <text class="fc-line-num" x="665" y="980" text-anchor="middle">L145–146</text>
+  </g>
+  <!-- Case 3b-iii → return true -->
+  <g id="a-case3biii-ret" data-paths="">
+    <polyline class="fc-arrow" points="665,1056 665,1370 410,1370" fill="none"/>
+  </g>
+
+  <!-- =================== -->
+  <!--  RETURN TRUE         -->
+  <!-- =================== -->
+  <g id="n-return" data-paths="jack,jose,mary,jay">
+    <rect class="fc-terminal" x="310" y="1350" width="100" height="40" rx="20"/>
+    <text class="fc-title" x="360" y="1374" text-anchor="middle" style="fill:var(--green)">return true</text>
+    <text class="fc-line-num" x="360" y="1396" text-anchor="middle">L159</text>
+  </g>
+
+  <!-- =================== -->
+  <!--  SECTION LABELS      -->
+  <!-- =================== -->
+  <rect x="4" y="284" width="4" height="92" rx="2" fill="var(--green)" opacity="0.5"/>
+  <text x="16" y="375" style="font-size:8px;fill:var(--green);font-weight:700;writing-mode:tb" transform="rotate(180,16,340)">CASE 2</text>
+
+  <rect x="4" y="470" width="4" height="100" rx="2" fill="var(--blue)" opacity="0.5"/>
+  <text x="16" y="556" style="font-size:8px;fill:var(--blue);font-weight:700;writing-mode:tb" transform="rotate(180,16,520)">CASE 3a</text>
+
+  <rect x="4" y="820" width="4" height="96" rx="2" fill="var(--purple)" opacity="0.5"/>
+  <text x="16" y="907" style="font-size:8px;fill:var(--purple);font-weight:700;writing-mode:tb" transform="rotate(180,16,870)">CASE 3b-i</text>
+
+  <rect x="236" y="1260" width="250" height="4" rx="2" fill="var(--teal)" opacity="0.4"/>
+  <text x="360" y="1280" text-anchor="middle" style="font-size:8px;fill:var(--teal);font-weight:700">CASE 3b-ii</text>
+
+</svg>
+</div>
+
+<div class="legend-bar">
+  <div class="legend-item"><div class="lg-diamond"></div> Decision / Condition</div>
+  <div class="legend-item"><div class="lg-rect"></div> Action</div>
+  <div class="legend-item"><div class="lg-pill"></div> Terminal (entry / return)</div>
+  <div class="legend-item"><div class="lg-loop"></div> Loop body</div>
+</div>
+
+<script>
+const ALL_PATHS = ['reject','jack','jose','mary','jay'];
+
+function highlight(path) {
+  // Reset all buttons
+  document.querySelectorAll('.path-btn').forEach(b => b.className = 'path-btn');
+  const btn = document.getElementById('btn-' + path);
+  if (btn) btn.classList.add('active-' + path);
+
+  const allGroups = document.querySelectorAll('svg g[id]');
+
+  if (path === 'none') {
+    // Show everything
+    allGroups.forEach(g => {
+      g.classList.remove('dimmed','hl-on','hl-reject','hl-jack','hl-jose','hl-mary','hl-jay');
+    });
+    return;
+  }
+
+  allGroups.forEach(g => {
+    const paths = (g.dataset.paths || '').split(',');
+    g.classList.remove('hl-on','hl-reject','hl-jack','hl-jose','hl-mary','hl-jay','dimmed');
+
+    if (paths.includes(path)) {
+      g.classList.add('hl-on', 'hl-' + path);
+      g.classList.remove('dimmed');
+    } else {
+      g.classList.add('dimmed');
+      g.classList.remove('hl-on');
+    }
+  });
+}
+
+// Start with all paths shown
+highlight('none');
+</script>
+
+</body>
+</html>

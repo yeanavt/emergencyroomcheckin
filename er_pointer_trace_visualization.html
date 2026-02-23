@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ER Linked List — Pointer Trace Visualizer</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0c0f14;
+  --surface: #161b24;
+  --surface2: #1e2533;
+  --border: #2a3245;
+  --text: #e4e8f1;
+  --text-dim: #7a8499;
+  --accent: #ff6b6b;
+  --accent-glow: rgba(255,107,107,0.25);
+  --green: #4ecdc4;
+  --green-glow: rgba(78,205,196,0.2);
+  --yellow: #ffe66d;
+  --blue: #6c9bff;
+  --orange: #ffa64d;
+  --purple: #b47aff;
+  --pink: #ff79c6;
+  --null-color: #555e73;
+  --arrow-color: #4a5568;
+  --compare-color: #ff79c6;
+  --compare2-color: #50fa7b;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; }
+
+.grain {
+  position:fixed; inset:0; pointer-events:none; z-index:100;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+}
+
+header { text-align:center; padding:2rem 1rem 1rem; position:relative; }
+header::after { content:''; position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:60%; height:1px; background:linear-gradient(90deg,transparent,var(--border),transparent); }
+h1 { font-family:'JetBrains Mono',monospace; font-size:1.5rem; font-weight:700; background:linear-gradient(135deg,var(--accent),var(--yellow)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:0.3rem; }
+.subtitle { color:var(--text-dim); font-size:0.8rem; font-family:'JetBrains Mono',monospace; }
+
+.container { max-width:1200px; margin:0 auto; padding:1.2rem 1rem; }
+
+/* Main step tabs */
+.main-tabs { display:flex; justify-content:center; gap:0.5rem; margin-bottom:1rem; flex-wrap:wrap; }
+.main-tab {
+  font-family:'JetBrains Mono',monospace; font-size:0.7rem; padding:0.45rem 0.9rem;
+  border:1px solid var(--border); background:var(--surface); color:var(--text-dim);
+  border-radius:6px; cursor:pointer; transition:all 0.25s;
+}
+.main-tab:hover { border-color:var(--accent); color:var(--text); }
+.main-tab.active { border-color:var(--accent); background:rgba(255,107,107,0.1); color:var(--accent); box-shadow:0 0 12px var(--accent-glow); }
+
+/* Sub-step nav */
+.sub-nav { display:flex; align-items:center; justify-content:center; gap:0.5rem; margin-bottom:1rem; }
+.nav-btn {
+  font-family:'JetBrains Mono',monospace; font-size:0.8rem; padding:0.5rem 1.2rem;
+  border:1px solid var(--border); background:var(--surface); color:var(--text);
+  border-radius:6px; cursor:pointer; transition:all 0.25s;
+}
+.nav-btn:hover:not(:disabled) { border-color:var(--green); box-shadow:0 0 10px var(--green-glow); }
+.nav-btn:disabled { opacity:0.3; cursor:not-allowed; }
+.step-info { font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:var(--text-dim); min-width:120px; text-align:center; }
+.step-info span { color:var(--accent); font-weight:700; }
+
+/* Code + description */
+.code-box {
+  font-family:'JetBrains Mono',monospace; text-align:center; margin-bottom:0.6rem;
+  padding:0.7rem 1rem; background:var(--surface); border:1px solid var(--border);
+  border-radius:8px; font-size:0.8rem; color:var(--green); line-height:1.6;
+}
+.kw { color:var(--purple); } .str { color:var(--yellow); } .num { color:var(--orange); }
+.cmt { color:var(--text-dim); font-style:italic; font-size:0.72rem; }
+.cond { color:var(--pink); } .tr { color:var(--green); } .fl { color:var(--accent); }
+
+.desc-box {
+  text-align:center; color:var(--text-dim); font-size:0.78rem; margin-bottom:1.2rem;
+  line-height:1.6; font-family:'JetBrains Mono',monospace; padding:0 1rem;
+}
+.hl { color:var(--accent); font-weight:600; }
+.nm { color:var(--yellow); font-weight:600; }
+.pn { color:var(--orange); font-weight:600; }
+.cp { color:var(--compare-color); font-weight:600; }
+.c2 { color:var(--compare2-color); font-weight:600; }
+
+/* Legend */
+.legend { display:flex; gap:1.2rem; justify-content:center; flex-wrap:wrap; margin-bottom:1rem; font-family:'JetBrains Mono',monospace; font-size:0.62rem; color:var(--text-dim); }
+.legend-item { display:flex; align-items:center; gap:5px; }
+.lsw { width:10px; height:10px; border-radius:3px; border:2px solid; }
+.lsw.hd { border-color:var(--green); background:rgba(78,205,196,0.15); }
+.lsw.nw { border-color:var(--accent); background:rgba(255,107,107,0.15); }
+.lsw.ex { border-color:var(--border); background:var(--surface2); }
+.lsw.cmp { border-color:var(--compare-color); background:rgba(255,121,198,0.15); }
+.lsw.cm2 { border-color:var(--compare2-color); background:rgba(80,250,123,0.15); }
+
+/* Linked list area */
+.list-area {
+  display:flex; align-items:center; justify-content:flex-start; gap:0;
+  padding:2.8rem 1.2rem 2rem; overflow-x:auto; min-height:200px;
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  margin-bottom:1rem; position:relative;
+}
+.head-label {
+  position:absolute; top:10px; left:14px;
+  font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--green);
+  background:rgba(78,205,196,0.1); padding:2px 7px; border-radius:4px; border:1px solid rgba(78,205,196,0.25);
+}
+
+/* Nodes */
+.node { display:flex; flex-direction:column; align-items:center; flex-shrink:0; position:relative; }
+.node-box {
+  border:2px solid var(--border); border-radius:10px; background:var(--surface2);
+  min-width:110px; overflow:hidden; transition:all 0.3s; position:relative;
+}
+.node-box.new-node { border-color:var(--accent); box-shadow:0 0 15px var(--accent-glow); }
+.node-box.head-node { border-color:var(--green); }
+.node-box.compare-node { border-color:var(--compare-color); box-shadow:0 0 12px rgba(255,121,198,0.3); }
+.node-box.compare2-node { border-color:var(--compare2-color); box-shadow:0 0 12px rgba(80,250,123,0.3); }
+.node-box.both-node { border-color:var(--compare-color); box-shadow:0 0 12px rgba(255,121,198,0.3), 0 0 20px rgba(80,250,123,0.2); }
+
+.node-name { font-weight:700; font-size:0.95rem; padding:0.5rem 0.7rem 0.15rem; text-align:center; }
+.node-pain { font-family:'JetBrains Mono',monospace; font-size:0.7rem; padding:0.1rem 0.7rem 0.4rem; text-align:center; color:var(--text-dim); }
+.node-pain span { font-weight:700; font-size:0.85rem; }
+.pain-bar-wrap { display:flex; justify-content:center; padding:0 0.5rem 0.35rem; }
+.pain-bar { height:3px; border-radius:2px; }
+
+.node-fields { display:flex; border-top:1px solid var(--border); font-family:'JetBrains Mono',monospace; font-size:0.55rem; }
+.field { flex:1; padding:0.3rem 0.35rem; text-align:center; color:var(--text-dim); }
+.field:first-child { border-right:1px solid var(--border); }
+.field-label { display:block; font-size:0.45rem; color:var(--null-color); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:1px; }
+
+/* Pointer labels above/below nodes */
+.ptr-label {
+  position:absolute; font-family:'JetBrains Mono',monospace; font-size:0.62rem;
+  font-weight:700; padding:2px 6px; border-radius:4px; white-space:nowrap;
+  animation: ptrPop 0.35s ease-out;
+}
+@keyframes ptrPop { from { opacity:0; transform:scale(0.7); } to { opacity:1; transform:scale(1); } }
+
+.ptr-compare {
+  top:-22px; left:50%; transform:translateX(-50%);
+  color:var(--compare-color); background:rgba(255,121,198,0.12); border:1px solid rgba(255,121,198,0.35);
+}
+.ptr-compare2 {
+  bottom:-22px; left:50%; transform:translateX(-50%);
+  color:var(--compare2-color); background:rgba(80,250,123,0.12); border:1px solid rgba(80,250,123,0.35);
+}
+.ptr-compare::before { content:''; position:absolute; bottom:-5px; left:50%; transform:translateX(-50%); border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid rgba(255,121,198,0.5); }
+.ptr-compare2::before { content:''; position:absolute; top:-5px; left:50%; transform:translateX(-50%); border-left:4px solid transparent; border-right:4px solid transparent; border-bottom:5px solid rgba(80,250,123,0.5); }
+
+/* Floating new node */
+.floating-new {
+  position:absolute; top:8px; right:14px;
+  font-family:'JetBrains Mono',monospace; font-size:0.6rem;
+  color:var(--accent); background:rgba(255,107,107,0.1); border:1px dashed var(--accent);
+  padding:3px 8px; border-radius:5px; animation: ptrPop 0.35s ease-out;
+}
+
+/* Arrows */
+.arrow { display:flex; align-items:center; flex-shrink:0; padding:0 0.2rem; }
+.arrow svg { width:44px; height:18px; }
+
+.null-node {
+  font-family:'JetBrains Mono',monospace; font-size:0.8rem; font-weight:700;
+  color:var(--null-color); border:2px dashed var(--null-color); border-radius:8px;
+  padding:0.8rem 1rem; flex-shrink:0; opacity:0.7;
+}
+
+.empty-state {
+  display:flex; align-items:center; justify-content:center; width:100%;
+  color:var(--text-dim); font-family:'JetBrains Mono',monospace; font-size:0.82rem; font-style:italic;
+}
+
+/* Console */
+.console-box {
+  background:#0a0d12; border:1px solid var(--border); border-radius:8px;
+  padding:0.8rem 1rem; font-family:'JetBrains Mono',monospace; font-size:0.72rem;
+  line-height:1.7; color:#b0bec5; max-height:100px; overflow-y:auto;
+}
+.console-box .pr { color:var(--green); }
+
+@media(max-width:750px) {
+  h1 { font-size:1.15rem; }
+  .main-tab { font-size:0.6rem; padding:0.35rem 0.6rem; }
+  .node-box { min-width:90px; }
+  .list-area { padding:2.5rem 0.7rem 1.8rem; }
+}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<header>
+  <h1>🏥 ER Waiting Room — Pointer Trace Visualizer</h1>
+  <div class="subtitle">Watch compare &amp; compare2 traverse the singly-linked list</div>
+</header>
+<div class="container">
+  <div class="legend">
+    <div class="legend-item"><div class="lsw hd"></div>head</div>
+    <div class="legend-item"><div class="lsw nw"></div>new node</div>
+    <div class="legend-item"><div class="lsw cmp"></div>compare</div>
+    <div class="legend-item"><div class="lsw cm2"></div>compare2</div>
+    <div class="legend-item"><div class="lsw ex"></div>existing</div>
+  </div>
+  <div class="main-tabs" id="mainTabs"></div>
+  <div class="sub-nav">
+    <button class="nav-btn" id="prevBtn" onclick="prev()">◀ Prev</button>
+    <div class="step-info">Sub-step <span id="subNum">1</span> / <span id="subTotal">1</span></div>
+    <button class="nav-btn" id="nextBtn" onclick="next()">Next ▶</button>
+  </div>
+  <div class="code-box" id="codeBox"></div>
+  <div class="desc-box" id="descBox"></div>
+  <div class="list-area" id="listArea"><div class="head-label">head →</div></div>
+  <div class="console-box" id="consoleBox"></div>
+</div>
+
+<script>
+// ===== DATA =====
+// Each main step = one check_in call. Each has sub-steps showing pointer movement.
+// listState: the list BEFORE this check_in (for traversal visualization).
+// For the "result" sub-step, we show the list AFTER insertion.
+// compareIdx/compare2Idx: index into listState array, or -1 for NULL/not-yet-set.
+
+const MAIN = [
+  // ===== 0: INIT =====
+  {
+    label: 'Init',
+    subs: [
+      {
+        code: '<span class="kw">ERmanager</span> *waiting_room = <span class="kw">new</span> ERmanager;',
+        desc: 'Constructor runs. <span class="hl">head = NULL</span>. The waiting room is empty. No patients, no pointers.',
+        list: [], resultList: null, compareIdx:-1, compare2Idx:-1, newNode:null,
+        console: ['ERmanager created. head = NULL']
+      }
+    ]
+  },
+  // ===== 1: JACK(5) =====
+  {
+    label: 'Jack (5)',
+    subs: [
+      {
+        code: 'waiting_room-><span class="kw">check_in</span>(<span class="str">"Jack"</span>, <span class="num">5</span>);',
+        desc: 'New node created: <span class="nm">Jack</span>(<span class="pn">5</span>). Check: <code>head == NULL</code>? <span class="tr">TRUE</span> → <span class="hl">Case 2: empty list.</span>',
+        list: [], resultList: null, compareIdx:-1, compare2Idx:-1,
+        newNode: {name:'Jack',pain:5},
+        console: []
+      },
+      {
+        code: 'newnode->next = head; <span class="cmt">// NULL</span><br>head = newnode;',
+        desc: '<span class="nm">Jack</span> becomes the head. No <span class="cp">compare</span> or <span class="c2">compare2</span> needed — list was empty.',
+        list: [{name:'Jack',pain:5}], resultList: true, compareIdx:-1, compare2Idx:-1, newNode:null, newIdx:0,
+        console: ['Jack (5) -> End of waiting room list for now!']
+      }
+    ]
+  },
+  // ===== 2: JOSE(6) =====
+  {
+    label: 'Jose (6)',
+    subs: [
+      {
+        code: 'waiting_room-><span class="kw">check_in</span>(<span class="str">"Jose"</span>, <span class="num">6</span>);',
+        desc: 'New node: <span class="nm">Jose</span>(<span class="pn">6</span>). <code>head != NULL</code> → enter Case 3. Set <span class="cp">compare = head</span> (Jack).',
+        list: [{name:'Jack',pain:5}], resultList: null, compareIdx:0, compare2Idx:-1,
+        newNode:{name:'Jose',pain:6},
+        console: ['Jose 6']
+      },
+      {
+        code: '<span class="kw">if</span> (pain > compare->pain) <span class="cmt">// 6 > 5?</span> → <span class="tr">TRUE</span>',
+        desc: 'Pain <span class="pn">6</span> > <span class="cp">compare</span>->pain <span class="pn">5</span>? <span class="tr">YES</span> → <span class="hl">Sub-case 3a: insert at front.</span> No while loop needed.',
+        list: [{name:'Jack',pain:5}], resultList: null, compareIdx:0, compare2Idx:-1,
+        newNode:{name:'Jose',pain:6},
+        console: ['Jose 6']
+      },
+      {
+        code: 'newnode->next = head; <span class="cmt">// Jose→Jack</span><br>head = newnode; <span class="cmt">// head = Jose</span>',
+        desc: '<span class="nm">Jose</span>(<span class="pn">6</span>) is now the head. Points to <span class="nm">Jack</span>(<span class="pn">5</span>).',
+        list: [{name:'Jose',pain:6},{name:'Jack',pain:5}], resultList:true, compareIdx:-1, compare2Idx:-1, newNode:null, newIdx:0,
+        console: ['Jose 6','Jose (6) -> Jack (5) -> End of waiting room list for now!']
+      }
+    ]
+  },
+  // ===== 3: CHRIS(10) =====
+  {
+    label: 'Chris (10)',
+    subs: [
+      {
+        code: 'waiting_room-><span class="kw">check_in</span>(<span class="str">"Chris"</span>, <span class="num">10</span>);',
+        desc: 'New node: <span class="nm">Chris</span>(<span class="pn">10</span>). <code>head != NULL</code> → Case 3. Set <span class="cp">compare = head</span> (Jose).',
+        list: [{name:'Jose',pain:6},{name:'Jack',pain:5}], resultList:null, compareIdx:0, compare2Idx:-1,
+        newNode:{name:'Chris',pain:10},
+        console: ['Chris 10']
+      },
+      {
+        code: '<span class="kw">if</span> (pain > compare->pain) <span class="cmt">// 10 > 6?</span> → <span class="tr">TRUE</span>',
+        desc: 'Pain <span class="pn">10</span> > <span class="cp">compare</span>->pain <span class="pn">6</span>? <span class="tr">YES</span> → <span class="hl">Sub-case 3a: insert at front.</span> No traversal needed.',
+        list: [{name:'Jose',pain:6},{name:'Jack',pain:5}], resultList:null, compareIdx:0, compare2Idx:-1,
+        newNode:{name:'Chris',pain:10},
+        console: ['Chris 10']
+      },
+      {
+        code: 'newnode->next = head; <span class="cmt">// Chris→Jose</span><br>head = newnode; <span class="cmt">// head = Chris</span>',
+        desc: '<span class="nm">Chris</span>(<span class="pn">10</span>) is the new head. Highest pain = highest priority.',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Jack',pain:5}], resultList:true, compareIdx:-1, compare2Idx:-1, newNode:null, newIdx:0,
+        console: ['Chris 10','Chris (10) -> Jose (6) -> Jack (5) -> End of waiting room list for now!']
+      }
+    ]
+  },
+  // ===== 4: MARY(6) — the interesting one with full traversal =====
+  {
+    label: 'Mary (6)',
+    subs: [
+      {
+        code: 'waiting_room-><span class="kw">check_in</span>(<span class="str">"Mary"</span>, <span class="num">6</span>);',
+        desc: 'New node: <span class="nm">Mary</span>(<span class="pn">6</span>). <code>head != NULL</code> → Case 3. Set <span class="cp">compare = head</span> (Chris).',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:0, compare2Idx:-1,
+        newNode:{name:'Mary',pain:6},
+        console: ['Mary 6']
+      },
+      {
+        code: '<span class="kw">if</span> (pain > compare->pain) <span class="cmt">// 6 > 10?</span> → <span class="fl">FALSE</span>',
+        desc: 'Pain <span class="pn">6</span> > <span class="cp">compare</span>->pain <span class="pn">10</span>? <span class="fl">NO</span> → enter <code>else</code> block. Initialize <span class="c2">compare2 = NULL</span>. Enter while loop.',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:0, compare2Idx:-1,
+        newNode:{name:'Mary',pain:6},
+        console: ['Mary 6']
+      },
+      {
+        code: '<span class="kw">while</span> (pain <= compare->pain && compare->next != NULL) <span class="cmt">// 6 ≤ 10 && next≠NULL?</span> → <span class="tr">TRUE</span>',
+        desc: '<span class="cond">While condition:</span> <span class="pn">6</span> ≤ <span class="pn">10</span>? <span class="tr">YES</span>. Chris→next ≠ NULL? <span class="tr">YES</span> → enter loop body.',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:0, compare2Idx:-1,
+        newNode:{name:'Mary',pain:6},
+        console: ['Mary 6']
+      },
+      {
+        code: 'compare2 = compare; <span class="cmt">// compare2 = Chris</span><br>compare = compare->next; <span class="cmt">// compare = Jose</span>',
+        desc: '<span class="c2">compare2</span> catches up to Chris(10). <span class="cp">compare</span> advances to Jose(6). Pointers moved one step right.',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:1, compare2Idx:0,
+        newNode:{name:'Mary',pain:6},
+        console: ['Mary 6']
+      },
+      {
+        code: '<span class="kw">while</span> (pain <= compare->pain && compare->next != NULL) <span class="cmt">// 6 ≤ 6 && next≠NULL?</span> → <span class="tr">TRUE</span>',
+        desc: '<span class="cond">While condition:</span> <span class="pn">6</span> ≤ <span class="pn">6</span>? <span class="tr">YES</span>. Jose→next ≠ NULL? <span class="tr">YES</span> → loop body again.',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:1, compare2Idx:0,
+        newNode:{name:'Mary',pain:6},
+        console: ['Mary 6']
+      },
+      {
+        code: 'compare2 = compare; <span class="cmt">// compare2 = Jose</span><br>compare = compare->next; <span class="cmt">// compare = Jack</span>',
+        desc: '<span class="c2">compare2</span> advances to Jose(6). <span class="cp">compare</span> advances to Jack(5). Both pointers shifted one more step.',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:2, compare2Idx:1,
+        newNode:{name:'Mary',pain:6},
+        console: ['Mary 6']
+      },
+      {
+        code: '<span class="kw">while</span> (pain <= compare->pain && ...) <span class="cmt">// 6 ≤ 5?</span> → <span class="fl">FALSE</span> — exit while',
+        desc: '<span class="cond">While condition:</span> <span class="pn">6</span> ≤ <span class="pn">5</span>? <span class="fl">NO</span> → <span class="hl">exit while loop.</span> <span class="cp">compare</span> = Jack(5), <span class="c2">compare2</span> = Jose(6).',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:2, compare2Idx:1,
+        newNode:{name:'Mary',pain:6},
+        console: ['Mary 6']
+      },
+      {
+        code: '<span class="kw">if</span> (pain > compare->pain) <span class="cmt">// 6 > 5?</span> → <span class="tr">TRUE</span> → <span class="hl">Sub-case 3b-i</span>',
+        desc: '<span class="pn">6</span> > <span class="cp">compare</span>->pain <span class="pn">5</span>? <span class="tr">YES</span> → Insert Mary between <span class="c2">compare2</span> (Jose) and <span class="cp">compare</span> (Jack).',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:2, compare2Idx:1,
+        newNode:{name:'Mary',pain:6},
+        console: ['Mary 6']
+      },
+      {
+        code: 'compare2->next = newnode; <span class="cmt">// Jose→Mary</span><br>newnode->next = compare; <span class="cmt">// Mary→Jack</span>',
+        desc: '<span class="hl">Inserted!</span> <span class="nm">Mary</span>(<span class="pn">6</span>) is spliced between Jose and Jack. FIFO among equal pain levels — Jose(6) stays ahead of Mary(6).',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],
+        resultList:true, compareIdx:-1, compare2Idx:-1, newNode:null, newIdx:2,
+        console: ['Mary 6','Chris (10) -> Jose (6) -> Mary (6) -> Jack (5) -> End of waiting room list for now!']
+      }
+    ]
+  },
+  // ===== 5: JAY(2) — traverses entire list, appends at end =====
+  {
+    label: 'Jay (2)',
+    subs: [
+      {
+        code: 'waiting_room-><span class="kw">check_in</span>(<span class="str">"Jay"</span>, <span class="num">2</span>);',
+        desc: 'New node: <span class="nm">Jay</span>(<span class="pn">2</span>). <code>head != NULL</code> → Case 3. Set <span class="cp">compare = head</span> (Chris).',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:0, compare2Idx:-1,
+        newNode:{name:'Jay',pain:2},
+        console: ['Jay 2']
+      },
+      {
+        code: '<span class="kw">if</span> (pain > compare->pain) <span class="cmt">// 2 > 10?</span> → <span class="fl">FALSE</span>',
+        desc: 'Pain <span class="pn">2</span> > <span class="cp">compare</span>->pain <span class="pn">10</span>? <span class="fl">NO</span> → enter <code>else</code>. <span class="c2">compare2 = NULL</span>. Enter while loop.',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:0, compare2Idx:-1,
+        newNode:{name:'Jay',pain:2},
+        console: ['Jay 2']
+      },
+      {
+        code: '<span class="kw">while</span> (...) <span class="cmt">// 2 ≤ 10 && next≠NULL?</span> → <span class="tr">TRUE</span>',
+        desc: '<span class="pn">2</span> ≤ <span class="pn">10</span> and Chris→next exists → enter loop.',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:0, compare2Idx:-1,
+        newNode:{name:'Jay',pain:2},
+        console: ['Jay 2']
+      },
+      {
+        code: 'compare2 = compare; <span class="cmt">// compare2 = Chris</span><br>compare = compare->next; <span class="cmt">// compare = Jose</span>',
+        desc: '<span class="c2">compare2</span> → Chris(10). <span class="cp">compare</span> → Jose(6).',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:1, compare2Idx:0,
+        newNode:{name:'Jay',pain:2},
+        console: ['Jay 2']
+      },
+      {
+        code: '<span class="kw">while</span> (...) <span class="cmt">// 2 ≤ 6 && next≠NULL?</span> → <span class="tr">TRUE</span>',
+        desc: '<span class="pn">2</span> ≤ <span class="pn">6</span> and Jose→next exists → continue loop.',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:1, compare2Idx:0,
+        newNode:{name:'Jay',pain:2},
+        console: ['Jay 2']
+      },
+      {
+        code: 'compare2 = compare; <span class="cmt">// compare2 = Jose</span><br>compare = compare->next; <span class="cmt">// compare = Mary</span>',
+        desc: '<span class="c2">compare2</span> → Jose(6). <span class="cp">compare</span> → Mary(6).',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:2, compare2Idx:1,
+        newNode:{name:'Jay',pain:2},
+        console: ['Jay 2']
+      },
+      {
+        code: '<span class="kw">while</span> (...) <span class="cmt">// 2 ≤ 6 && next≠NULL?</span> → <span class="tr">TRUE</span>',
+        desc: '<span class="pn">2</span> ≤ <span class="pn">6</span> and Mary→next exists → continue loop.',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:2, compare2Idx:1,
+        newNode:{name:'Jay',pain:2},
+        console: ['Jay 2']
+      },
+      {
+        code: 'compare2 = compare; <span class="cmt">// compare2 = Mary</span><br>compare = compare->next; <span class="cmt">// compare = Jack</span>',
+        desc: '<span class="c2">compare2</span> → Mary(6). <span class="cp">compare</span> → Jack(5).',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:3, compare2Idx:2,
+        newNode:{name:'Jay',pain:2},
+        console: ['Jay 2']
+      },
+      {
+        code: '<span class="kw">while</span> (...) <span class="cmt">// 2 ≤ 5 && next≠NULL?</span> → <span class="fl">FALSE</span> (Jack→next == NULL)',
+        desc: '<span class="pn">2</span> ≤ <span class="pn">5</span>? YES, but Jack→next == <span class="hl">NULL</span> → <span class="hl">exit while loop.</span> We\'ve reached the tail.',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:3, compare2Idx:2,
+        newNode:{name:'Jay',pain:2},
+        console: ['Jay 2']
+      },
+      {
+        code: '<span class="kw">if</span> (pain > compare->pain) <span class="cmt">// 2 > 5?</span> → <span class="fl">FALSE</span>',
+        desc: '<span class="pn">2</span> > <span class="pn">5</span>? <span class="fl">NO</span> → enter outer <code>else</code> block.',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:3, compare2Idx:2,
+        newNode:{name:'Jay',pain:2},
+        console: ['Jay 2']
+      },
+      {
+        code: '<span class="kw">if</span> (compare->next == NULL && compare->pain >= pain) <span class="cmt">// NULL && 5≥2?</span> → <span class="tr">TRUE</span>',
+        desc: 'Jack is the last node and <span class="pn">5</span> ≥ <span class="pn">2</span> → <span class="hl">Sub-case 3b-ii: append at end.</span>',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],
+        resultList:null, compareIdx:3, compare2Idx:2,
+        newNode:{name:'Jay',pain:2},
+        console: ['Jay 2']
+      },
+      {
+        code: 'newnode->next = NULL;<br>compare->next = newnode; <span class="cmt">// Jack→Jay</span>',
+        desc: '<span class="hl">Appended!</span> <span class="nm">Jay</span>(<span class="pn">2</span>) is the new tail. Lowest pain = lowest priority = last in line.',
+        list: [{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5},{name:'Jay',pain:2}],
+        resultList:true, compareIdx:-1, compare2Idx:-1, newNode:null, newIdx:4,
+        console: ['Jay 2','Chris (10) -> Jose (6) -> Mary (6) -> Jack (5) -> Jay (2) -> End of waiting room list for now!']
+      }
+    ]
+  }
+];
+
+let mainIdx = 0, subIdx = 0;
+
+function painColor(p) {
+  if(p<=2) return'#6c9bff'; if(p<=4) return'#4ecdc4'; if(p<=6) return'#ffe66d'; if(p<=8) return'#ffa64d'; return'#ff6b6b';
+}
+
+function arrowSvg(dashed) {
+  const d = dashed ? ' stroke-dasharray="4,3"' : '';
+  return `<svg viewBox="0 0 44 18"><line x1="0" y1="9" x2="34" y2="9" stroke="#4a5568" stroke-width="2"${d}/><polygon points="34,4.5 44,9 34,13.5" fill="#4a5568"/></svg>`;
+}
+
+function renderMainTabs() {
+  document.getElementById('mainTabs').innerHTML = MAIN.map((m,i) =>
+    `<button class="main-tab ${i===mainIdx?'active':''}" onclick="goMain(${i})">${m.label}</button>`
+  ).join('');
+}
+
+function renderList(s) {
+  const area = document.getElementById('listArea');
+  const list = s.list;
+  if(!list.length) {
+    area.innerHTML = `<div class="head-label">head →</div><div class="empty-state">NULL — waiting room is empty</div>`;
+    if(s.newNode) area.innerHTML += `<div class="floating-new">newnode: ${s.newNode.name}(${s.newNode.pain}) waiting…</div>`;
+    return;
+  }
+
+  let html = '<div class="head-label">head →</div>';
+  if(s.newNode) html += `<div class="floating-new">newnode: ${s.newNode.name}(${s.newNode.pain})</div>`;
+
+  list.forEach((node,i) => {
+    const isNew = s.resultList && i === s.newIdx;
+    const isHead = i === 0 && !isNew;
+    const isCmp = s.compareIdx === i;
+    const isCm2 = s.compare2Idx === i;
+    const isBoth = isCmp && isCm2;
+
+    let boxClass = '';
+    if(isNew) boxClass = 'new-node';
+    else if(isBoth) boxClass = 'both-node';
+    else if(isCmp) boxClass = 'compare-node';
+    else if(isCm2) boxClass = 'compare2-node';
+    else if(isHead) boxClass = 'head-node';
+
+    const col = painColor(node.pain);
+    const nextName = i < list.length-1 ? list[i+1].name : 'NULL';
+
+    html += `<div class="node">`;
+    // Pointer labels
+    if(isCmp) html += `<div class="ptr-label ptr-compare">compare</div>`;
+    if(isCm2) html += `<div class="ptr-label ptr-compare2">compare2</div>`;
+
+    html += `<div class="node-box ${boxClass}">
+      <div class="node-name">${node.name}</div>
+      <div class="node-pain"><span style="color:${col}">${node.pain}</span> /10</div>
+      <div class="pain-bar-wrap"><div class="pain-bar" style="width:${node.pain*10}px;background:${col}"></div></div>
+      <div class="node-fields">
+        <div class="field"><span class="field-label">data</span>${node.name}, ${node.pain}</div>
+        <div class="field"><span class="field-label">next</span>${nextName==='NULL'?'<span style="color:var(--null-color)">NULL</span>':'→'+nextName}</div>
+      </div>
+    </div></div>`;
+
+    if(i < list.length-1) html += `<div class="arrow">${arrowSvg(false)}</div>`;
+    else html += `<div class="arrow">${arrowSvg(true)}</div><div class="null-node">NULL</div>`;
+  });
+
+  area.innerHTML = html;
+}
+
+function render() {
+  const m = MAIN[mainIdx];
+  const s = m.subs[subIdx];
+  renderMainTabs();
+  document.getElementById('subNum').textContent = subIdx + 1;
+  document.getElementById('subTotal').textContent = m.subs.length;
+  document.getElementById('codeBox').innerHTML = s.code;
+  document.getElementById('descBox').innerHTML = s.desc;
+  renderList(s);
+  document.getElementById('consoleBox').innerHTML = s.console.map(l => `<div><span class="pr">$</span> ${l}</div>`).join('');
+  document.getElementById('prevBtn').disabled = mainIdx===0 && subIdx===0;
+  document.getElementById('nextBtn').disabled = mainIdx===MAIN.length-1 && subIdx===m.subs.length-1;
+}
+
+function goMain(i) { mainIdx=i; subIdx=0; render(); }
+function next() {
+  const m = MAIN[mainIdx];
+  if(subIdx < m.subs.length-1) { subIdx++; }
+  else if(mainIdx < MAIN.length-1) { mainIdx++; subIdx=0; }
+  render();
+}
+function prev() {
+  if(subIdx > 0) { subIdx--; }
+  else if(mainIdx > 0) { mainIdx--; subIdx = MAIN[mainIdx].subs.length-1; }
+  render();
+}
+
+document.addEventListener('keydown', e => { if(e.key==='ArrowRight') next(); if(e.key==='ArrowLeft') prev(); });
+render();
+</script>
+</body>
+</html>

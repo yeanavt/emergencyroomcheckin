@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ER Check-In — Teaching Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif&display=swap" rel="stylesheet">
+<style>
+/* ========== GLOBAL ========== */
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;}
+
+.dashboard{display:flex;height:100vh;width:100vw;}
+
+/* ========== RESIZER ========== */
+.resizer{
+  width:6px;flex-shrink:0;cursor:col-resize;
+  background:linear-gradient(180deg,#1e2533,#2a3245,#1e2533);
+  position:relative;z-index:10;
+  transition:background 0.2s;
+}
+.resizer:hover,.resizer.dragging{background:linear-gradient(180deg,#ff6b6b,#ffa64d,#ff6b6b);}
+.resizer::after{
+  content:'⋮⋮';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  color:#7a8499;font-size:10px;letter-spacing:2px;pointer-events:none;
+}
+
+/* ========== LEFT PANEL: Pointer Trace ========== */
+.panel-left{
+  flex:1;min-width:300px;display:flex;flex-direction:column;overflow:hidden;
+  background:#0c0f14;color:#e4e8f1;
+}
+
+.pl-header{
+  text-align:center;padding:0.8rem 0.5rem 0.5rem;
+  border-bottom:1px solid #2a3245;flex-shrink:0;
+  background:#161b24;
+}
+.pl-header h2{
+  font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:700;
+  background:linear-gradient(135deg,#ff6b6b,#ffe66d);-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.pl-header .sub{color:#7a8499;font-size:0.65rem;font-family:'JetBrains Mono',monospace;margin-top:2px;}
+
+.pl-body{flex:1;overflow-y:auto;padding:0.6rem;}
+
+/* Trace controls */
+.t-legend{display:flex;gap:0.8rem;justify-content:center;flex-wrap:wrap;margin-bottom:0.5rem;font-family:'JetBrains Mono',monospace;font-size:0.55rem;color:#7a8499;}
+.t-legend-item{display:flex;align-items:center;gap:4px;}
+.tlsw{width:9px;height:9px;border-radius:2px;border:2px solid;}
+.tlsw.hd{border-color:#4ecdc4;background:rgba(78,205,196,0.15);}
+.tlsw.nw{border-color:#ff6b6b;background:rgba(255,107,107,0.15);}
+.tlsw.cmp{border-color:#ff79c6;background:rgba(255,121,198,0.15);}
+.tlsw.cm2{border-color:#50fa7b;background:rgba(80,250,123,0.15);}
+.tlsw.ex{border-color:#2a3245;background:#1e2533;}
+
+.t-main-tabs{display:flex;justify-content:center;gap:0.35rem;margin-bottom:0.5rem;flex-wrap:wrap;}
+.t-main-tab{
+  font-family:'JetBrains Mono',monospace;font-size:0.6rem;padding:0.3rem 0.6rem;
+  border:1px solid #2a3245;background:#161b24;color:#7a8499;border-radius:5px;cursor:pointer;transition:all 0.2s;
+}
+.t-main-tab:hover{border-color:#ff6b6b;color:#e4e8f1;}
+.t-main-tab.active{border-color:#ff6b6b;background:rgba(255,107,107,0.1);color:#ff6b6b;box-shadow:0 0 8px rgba(255,107,107,0.2);}
+
+.t-sub-nav{display:flex;align-items:center;justify-content:center;gap:0.4rem;margin-bottom:0.5rem;}
+.t-nav-btn{
+  font-family:'JetBrains Mono',monospace;font-size:0.7rem;padding:0.35rem 0.8rem;
+  border:1px solid #2a3245;background:#161b24;color:#e4e8f1;border-radius:5px;cursor:pointer;transition:all 0.2s;
+}
+.t-nav-btn:hover:not(:disabled){border-color:#4ecdc4;box-shadow:0 0 8px rgba(78,205,196,0.2);}
+.t-nav-btn:disabled{opacity:0.3;cursor:not-allowed;}
+.t-step-info{font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:#7a8499;min-width:80px;text-align:center;}
+.t-step-info span{color:#ff6b6b;font-weight:700;}
+
+.t-code-box{
+  font-family:'JetBrains Mono',monospace;text-align:center;margin-bottom:0.4rem;
+  padding:0.5rem 0.6rem;background:#161b24;border:1px solid #2a3245;
+  border-radius:6px;font-size:0.68rem;color:#4ecdc4;line-height:1.5;
+}
+.kw{color:#b47aff;}.str{color:#ffe66d;}.num{color:#ffa64d;}.cmt{color:#7a8499;font-style:italic;font-size:0.6rem;}
+.cond{color:#ff79c6;}.tr{color:#4ecdc4;}.fl{color:#ff6b6b;}
+
+.t-desc{
+  text-align:center;color:#7a8499;font-size:0.65rem;margin-bottom:0.7rem;
+  line-height:1.5;font-family:'JetBrains Mono',monospace;
+}
+.hl{color:#ff6b6b;font-weight:600;}.nm{color:#ffe66d;font-weight:600;}.pn{color:#ffa64d;font-weight:600;}
+.cp{color:#ff79c6;font-weight:600;}.c2{color:#50fa7b;font-weight:600;}
+
+/* Linked list area */
+.t-list-area{
+  display:flex;align-items:center;justify-content:flex-start;gap:0;
+  padding:2.2rem 0.8rem 1.6rem;overflow-x:auto;min-height:160px;
+  background:#161b24;border:1px solid #2a3245;border-radius:10px;
+  margin-bottom:0.5rem;position:relative;
+}
+.t-head-label{
+  position:absolute;top:7px;left:10px;
+  font-family:'JetBrains Mono',monospace;font-size:0.55rem;color:#4ecdc4;
+  background:rgba(78,205,196,0.1);padding:1px 6px;border-radius:3px;border:1px solid rgba(78,205,196,0.25);
+}
+.t-floating-new{
+  position:absolute;top:6px;right:10px;
+  font-family:'JetBrains Mono',monospace;font-size:0.52rem;
+  color:#ff6b6b;background:rgba(255,107,107,0.1);border:1px dashed #ff6b6b;
+  padding:2px 6px;border-radius:4px;
+}
+.t-node{display:flex;flex-direction:column;align-items:center;flex-shrink:0;position:relative;}
+.t-node-box{
+  border:2px solid #2a3245;border-radius:8px;background:#1e2533;
+  min-width:95px;overflow:hidden;transition:all 0.3s;position:relative;
+}
+.t-node-box.new-node{border-color:#ff6b6b;box-shadow:0 0 12px rgba(255,107,107,0.25);}
+.t-node-box.head-node{border-color:#4ecdc4;}
+.t-node-box.compare-node{border-color:#ff79c6;box-shadow:0 0 10px rgba(255,121,198,0.3);}
+.t-node-box.compare2-node{border-color:#50fa7b;box-shadow:0 0 10px rgba(80,250,123,0.3);}
+.t-node-box.both-node{border-color:#ff79c6;box-shadow:0 0 10px rgba(255,121,198,0.3),0 0 16px rgba(80,250,123,0.2);}
+
+.t-node-name{font-weight:700;font-size:0.85rem;padding:0.4rem 0.5rem 0.1rem;text-align:center;}
+.t-node-pain{font-family:'JetBrains Mono',monospace;font-size:0.6rem;padding:0.05rem 0.5rem 0.3rem;text-align:center;color:#7a8499;}
+.t-node-pain span{font-weight:700;font-size:0.75rem;}
+.t-pain-bar-wrap{display:flex;justify-content:center;padding:0 0.4rem 0.25rem;}
+.t-pain-bar{height:3px;border-radius:2px;}
+.t-node-fields{display:flex;border-top:1px solid #2a3245;font-family:'JetBrains Mono',monospace;font-size:0.48rem;}
+.t-field{flex:1;padding:0.2rem 0.3rem;text-align:center;color:#7a8499;}
+.t-field:first-child{border-right:1px solid #2a3245;}
+.t-field-label{display:block;font-size:0.4rem;color:#555e73;text-transform:uppercase;letter-spacing:0.5px;}
+
+.t-ptr-label{
+  position:absolute;font-family:'JetBrains Mono',monospace;font-size:0.52rem;
+  font-weight:700;padding:1px 5px;border-radius:3px;white-space:nowrap;
+}
+.t-ptr-compare{top:-18px;left:50%;transform:translateX(-50%);color:#ff79c6;background:rgba(255,121,198,0.12);border:1px solid rgba(255,121,198,0.35);}
+.t-ptr-compare::before{content:'';position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);border-left:3px solid transparent;border-right:3px solid transparent;border-top:4px solid rgba(255,121,198,0.5);}
+.t-ptr-compare2{bottom:-18px;left:50%;transform:translateX(-50%);color:#50fa7b;background:rgba(80,250,123,0.12);border:1px solid rgba(80,250,123,0.35);}
+.t-ptr-compare2::before{content:'';position:absolute;top:-4px;left:50%;transform:translateX(-50%);border-left:3px solid transparent;border-right:3px solid transparent;border-bottom:4px solid rgba(80,250,123,0.5);}
+
+.t-arrow{display:flex;align-items:center;flex-shrink:0;padding:0 0.15rem;}
+.t-arrow svg{width:36px;height:14px;}
+.t-null-node{
+  font-family:'JetBrains Mono',monospace;font-size:0.7rem;font-weight:700;
+  color:#555e73;border:2px dashed #555e73;border-radius:6px;padding:0.6rem 0.7rem;flex-shrink:0;opacity:0.7;
+}
+.t-empty-state{
+  display:flex;align-items:center;justify-content:center;width:100%;
+  color:#7a8499;font-family:'JetBrains Mono',monospace;font-size:0.72rem;font-style:italic;
+}
+
+.t-console{
+  background:#0a0d12;border:1px solid #2a3245;border-radius:6px;
+  padding:0.5rem 0.7rem;font-family:'JetBrains Mono',monospace;font-size:0.6rem;
+  line-height:1.6;color:#b0bec5;max-height:70px;overflow-y:auto;
+}
+.t-console .pr{color:#4ecdc4;}
+
+
+/* ========== RIGHT PANEL: Flowchart ========== */
+.panel-right{
+  flex:1;min-width:300px;display:flex;flex-direction:column;overflow:hidden;
+  background:#f5f0e8;color:#1a1a2e;
+  background-image:linear-gradient(rgba(26,26,46,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(26,26,46,0.05) 1px,transparent 1px);
+  background-size:20px 20px;
+}
+
+.pr-header{
+  text-align:center;padding:0.8rem 0.5rem 0.5rem;
+  border-bottom:2px solid #1a1a2e;flex-shrink:0;
+  background:#fffdf7;position:relative;
+}
+.pr-header::before{content:'FLOWCHART';position:absolute;top:6px;right:10px;font-size:0.45rem;letter-spacing:2px;color:#8a8a9e;font-family:'JetBrains Mono',monospace;}
+.pr-header h2{font-family:'Instrument Serif',serif;font-size:1.15rem;font-weight:400;letter-spacing:-0.3px;color:#1a1a2e;}
+.pr-header .sub{font-size:0.6rem;color:#4a4a5e;font-family:'JetBrains Mono',monospace;margin-top:2px;}
+
+.pr-controls{
+  display:flex;justify-content:center;gap:0.35rem;padding:0.5rem;flex-wrap:wrap;
+  background:#fffdf7;border-bottom:1px solid rgba(26,26,46,0.12);flex-shrink:0;
+}
+.pr-ctrl-label{font-size:0.55rem;color:#8a8a9e;text-transform:uppercase;letter-spacing:1px;align-self:center;margin-right:0.2rem;font-family:'JetBrains Mono',monospace;}
+.pr-path-btn{
+  font-family:'JetBrains Mono',monospace;font-size:0.58rem;padding:0.3rem 0.6rem;
+  border:1.5px solid #8a8a9e;background:#fffdf7;color:#4a4a5e;border-radius:3px;cursor:pointer;transition:all 0.2s;
+}
+.pr-path-btn:hover{border-color:#1a1a2e;color:#1a1a2e;}
+.pr-path-btn.pa-reject{border-color:#dc2626;color:#dc2626;background:rgba(220,38,38,0.07);}
+.pr-path-btn.pa-jack{border-color:#16a34a;color:#16a34a;background:rgba(22,163,74,0.07);}
+.pr-path-btn.pa-jose{border-color:#2563eb;color:#2563eb;background:rgba(37,99,235,0.07);}
+.pr-path-btn.pa-chris{border-color:#ea580c;color:#ea580c;background:rgba(234,88,12,0.07);}
+.pr-path-btn.pa-mary{border-color:#7c3aed;color:#7c3aed;background:rgba(124,58,237,0.07);}
+.pr-path-btn.pa-jay{border-color:#0d9488;color:#0d9488;background:rgba(13,148,136,0.07);}
+.pr-path-btn.pa-none{border-color:#1a1a2e;color:#1a1a2e;background:rgba(26,26,46,0.06);}
+
+.pr-body{flex:1;overflow:auto;display:flex;justify-content:center;padding:0.8rem;}
+
+.pr-legend{
+  display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;padding:0.5rem;
+  background:#fffdf7;border-top:1px solid rgba(26,26,46,0.12);flex-shrink:0;
+  font-family:'JetBrains Mono',monospace;font-size:0.52rem;color:#4a4a5e;
+}
+.pr-legend-item{display:flex;align-items:center;gap:4px;}
+.plg-diamond{width:10px;height:10px;background:#fffbeb;border:1.5px solid #b45309;transform:rotate(45deg);}
+.plg-rect{width:12px;height:8px;background:#fffdf7;border:1.5px solid #1a1a2e;border-radius:2px;}
+.plg-pill{width:12px;height:8px;background:#e0e7ff;border:1.5px solid #4338ca;border-radius:4px;}
+.plg-loop{width:12px;height:8px;background:#f0fdf4;border:1.5px solid #16a34a;border-radius:2px;}
+
+/* Flowchart SVG styles */
+.fc-decision{fill:#fffbeb;stroke:#b45309;stroke-width:2;transition:all 0.3s;}
+.fc-action{fill:#fffdf7;stroke:#1a1a2e;stroke-width:1.5;rx:6;transition:all 0.3s;}
+.fc-terminal{fill:#e0e7ff;stroke:#4338ca;stroke-width:2;rx:20;transition:all 0.3s;}
+.fc-loop{fill:#f0fdf4;stroke:#16a34a;stroke-width:2;transition:all 0.3s;}
+.fc-arrow{stroke:#8a8a9e;stroke-width:1.5;fill:none;marker-end:url(#ah);transition:all 0.3s;}
+.fc-label-yes{fill:#16a34a;font-size:9px;font-weight:700;}
+.fc-label-no{fill:#dc2626;font-size:9px;font-weight:700;}
+.fc-line-num{fill:#8a8a9e;font-size:7.5px;font-weight:600;}
+.fc-title{fill:#1a1a2e;font-size:10px;font-weight:600;}
+.fc-detail{fill:#4a4a5e;font-size:8px;}
+.fc-code{fill:#1a1a2e;font-size:7.5px;font-style:italic;}
+
+.hl-on .fc-decision,.hl-on .fc-action,.hl-on .fc-terminal,.hl-on .fc-loop{stroke-width:3;}
+.hl-on .fc-arrow{stroke-width:2.5;}
+.hl-reject .fc-decision,.hl-reject .fc-action,.hl-reject .fc-terminal{stroke:#dc2626;}
+.hl-reject .fc-arrow{stroke:#dc2626;}
+.hl-jack .fc-decision,.hl-jack .fc-action,.hl-jack .fc-terminal{stroke:#16a34a;}
+.hl-jack .fc-arrow{stroke:#16a34a;}
+.hl-jose .fc-decision,.hl-jose .fc-action,.hl-jose .fc-terminal{stroke:#2563eb;}
+.hl-jose .fc-arrow{stroke:#2563eb;}
+.hl-chris .fc-decision,.hl-chris .fc-action,.hl-chris .fc-terminal{stroke:#ea580c;}
+.hl-chris .fc-arrow{stroke:#ea580c;}
+.hl-mary .fc-decision,.hl-mary .fc-action,.hl-mary .fc-terminal,.hl-mary .fc-loop{stroke:#7c3aed;}
+.hl-mary .fc-arrow{stroke:#7c3aed;}
+.hl-jay .fc-decision,.hl-jay .fc-action,.hl-jay .fc-terminal,.hl-jay .fc-loop{stroke:#0d9488;}
+.hl-jay .fc-arrow{stroke:#0d9488;}
+.dimmed{opacity:0.13;}
+
+/* ========== SYNC INDICATOR ========== */
+.sync-badge{
+  position:fixed;bottom:10px;left:50%;transform:translateX(-50%);z-index:50;
+  font-family:'JetBrains Mono',monospace;font-size:0.6rem;
+  padding:0.3rem 0.8rem;border-radius:20px;
+  background:rgba(255,107,107,0.9);color:#fff;
+  opacity:0;transition:opacity 0.3s;pointer-events:none;
+}
+.sync-badge.show{opacity:1;}
+
+@media(max-width:900px){
+  .dashboard{flex-direction:column;}
+  .resizer{width:100%;height:6px;cursor:row-resize;}
+  .panel-left,.panel-right{min-width:auto;min-height:250px;}
+}
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+
+<!-- ============ LEFT PANEL: Pointer Trace ============ -->
+<div class="panel-left" id="panelLeft">
+  <div class="pl-header">
+    <h2>🏥 Pointer Trace Visualizer</h2>
+    <div class="sub">compare &amp; compare2 traversal</div>
+  </div>
+  <div class="pl-body">
+    <div class="t-legend">
+      <div class="t-legend-item"><div class="tlsw hd"></div>head</div>
+      <div class="t-legend-item"><div class="tlsw nw"></div>new</div>
+      <div class="t-legend-item"><div class="tlsw cmp"></div>compare</div>
+      <div class="t-legend-item"><div class="tlsw cm2"></div>compare2</div>
+      <div class="t-legend-item"><div class="tlsw ex"></div>existing</div>
+    </div>
+    <div class="t-main-tabs" id="tMainTabs"></div>
+    <div class="t-sub-nav">
+      <button class="t-nav-btn" id="tPrevBtn" onclick="tPrev()">◀</button>
+      <div class="t-step-info">Sub-step <span id="tSubNum">1</span>/<span id="tSubTotal">1</span></div>
+      <button class="t-nav-btn" id="tNextBtn" onclick="tNext()">▶</button>
+    </div>
+    <div class="t-code-box" id="tCodeBox"></div>
+    <div class="t-desc" id="tDescBox"></div>
+    <div class="t-list-area" id="tListArea"><div class="t-head-label">head →</div></div>
+    <div class="t-console" id="tConsole"></div>
+  </div>
+</div>
+
+<!-- ============ RESIZER ============ -->
+<div class="resizer" id="resizer"></div>
+
+<!-- ============ RIGHT PANEL: Flowchart ============ -->
+<div class="panel-right" id="panelRight">
+  <div class="pr-header">
+    <h2>check_in() Logic Flowchart</h2>
+    <div class="sub">Branch map with line numbers</div>
+  </div>
+  <div class="pr-controls">
+    <span class="pr-ctrl-label">Path:</span>
+    <button class="pr-path-btn" onclick="fcHL('none')" id="fc-btn-none">All</button>
+    <button class="pr-path-btn" onclick="fcHL('reject')" id="fc-btn-reject">Reject</button>
+    <button class="pr-path-btn" onclick="fcHL('jack')" id="fc-btn-jack">Jack</button>
+    <button class="pr-path-btn" onclick="fcHL('jose')" id="fc-btn-jose">Jose(6)</button>
+    <button class="pr-path-btn" onclick="fcHL('chris')" id="fc-btn-chris">Chris(10)</button>
+    <button class="pr-path-btn" onclick="fcHL('mary')" id="fc-btn-mary">Mary</button>
+    <button class="pr-path-btn" onclick="fcHL('jay')" id="fc-btn-jay">Jay</button>
+  </div>
+  <div class="pr-body">
+    <svg width="680" height="1380" viewBox="0 0 680 1380" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="ah" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#8a8a9e"/></marker>
+      </defs>
+      <g style="font-family:'JetBrains Mono',monospace">
+
+      <!-- START -->
+      <g id="f-start" data-fp="reject,jack,jose,chris,mary,jay">
+        <rect class="fc-terminal" x="240" y="16" width="200" height="40" rx="20"/>
+        <text class="fc-title" x="340" y="34" text-anchor="middle">check_in(fname, pain)</text>
+        <text class="fc-detail" x="340" y="46" text-anchor="middle">Line 76</text>
+      </g>
+      <g id="fa1" data-fp="reject,jack,jose,chris,mary,jay"><line class="fc-arrow" x1="340" y1="56" x2="340" y2="80"/></g>
+
+      <!-- CREATE -->
+      <g id="f-create" data-fp="reject,jack,jose,chris,mary,jay">
+        <rect class="fc-action" x="220" y="80" width="240" height="38"/>
+        <text class="fc-title" x="340" y="96" text-anchor="middle">Create newnode, set fname &amp; pain</text>
+        <text class="fc-line-num" x="465" y="92">L80–82</text>
+      </g>
+      <g id="fa2" data-fp="reject,jack,jose,chris,mary,jay"><line class="fc-arrow" x1="340" y1="118" x2="340" y2="148"/></g>
+
+      <!-- D1: reject? -->
+      <g id="f-d1" data-fp="reject,jack,jose,chris,mary,jay">
+        <polygon class="fc-decision" points="340,148 475,194 340,240 205,194"/>
+        <text class="fc-title" x="340" y="188" text-anchor="middle">NULL || ""</text>
+        <text class="fc-title" x="340" y="200" text-anchor="middle">|| pain==0?</text>
+        <text class="fc-line-num" x="480" y="190">L86</text>
+      </g>
+      <!-- YES → reject -->
+      <g id="fa-d1y" data-fp="reject"><line class="fc-arrow" x1="475" y1="194" x2="580" y2="194"/><text class="fc-label-yes" x="492" y="188">YES</text></g>
+      <g id="f-reject" data-fp="reject">
+        <rect class="fc-terminal" x="580" y="178" width="90" height="32" rx="16"/>
+        <text class="fc-title" x="625" y="198" text-anchor="middle" style="fill:#dc2626;font-size:9px">return false</text>
+      </g>
+      <!-- NO → D2 -->
+      <g id="fa-d1n" data-fp="jack,jose,chris,mary,jay"><line class="fc-arrow" x1="340" y1="240" x2="340" y2="268"/><text class="fc-label-no" x="347" y="258">NO</text></g>
+
+      <!-- D2: empty? -->
+      <g id="f-d2" data-fp="jack,jose,chris,mary,jay">
+        <polygon class="fc-decision" points="340,268 460,308 340,348 220,308"/>
+        <text class="fc-title" x="340" y="304" text-anchor="middle">head == NULL?</text>
+        <text class="fc-line-num" x="465" y="304">L91</text>
+      </g>
+      <!-- YES → case2 -->
+      <g id="fa-d2y" data-fp="jack"><line class="fc-arrow" x1="220" y1="308" x2="100" y2="308"/><text class="fc-label-yes" x="175" y="302">YES</text></g>
+      <g id="f-case2" data-fp="jack">
+        <rect class="fc-action" x="4" y="290" width="192" height="48"/>
+        <text class="fc-title" x="100" y="306" text-anchor="middle" style="fill:#16a34a;font-size:9px">Case 2: Insert as head</text>
+        <text class="fc-code" x="100" y="318" text-anchor="middle">newnode→next=head</text>
+        <text class="fc-code" x="100" y="330" text-anchor="middle">head=newnode</text>
+        <text class="fc-line-num" x="200" y="300">L94–95</text>
+      </g>
+      <g id="fa-c2r" data-fp="jack"><line class="fc-arrow" x1="100" y1="338" x2="100" y2="1332"/><line class="fc-arrow" x1="100" y1="1332" x2="295" y2="1332"/></g>
+      <!-- NO → compare=head -->
+      <g id="fa-d2n" data-fp="jose,chris,mary,jay"><line class="fc-arrow" x1="340" y1="348" x2="340" y2="376"/><text class="fc-label-no" x="347" y="366">NO</text></g>
+
+      <!-- compare=head -->
+      <g id="f-setcmp" data-fp="jose,chris,mary,jay">
+        <rect class="fc-action" x="245" y="376" width="190" height="32"/>
+        <text class="fc-title" x="340" y="396" text-anchor="middle">compare = head</text>
+        <text class="fc-line-num" x="440" y="392">L106</text>
+      </g>
+      <g id="fa3" data-fp="jose,chris,mary,jay"><line class="fc-arrow" x1="340" y1="408" x2="340" y2="436"/></g>
+
+      <!-- D3: > head? -->
+      <g id="f-d3" data-fp="jose,chris,mary,jay">
+        <polygon class="fc-decision" points="340,436 476,480 340,524 204,480"/>
+        <text class="fc-title" x="340" y="474" text-anchor="middle">pain > compare→pain?</text>
+        <text class="fc-line-num" x="481" y="476">L107</text>
+      </g>
+      <!-- YES → case3a -->
+      <g id="fa-d3y" data-fp="jose,chris"><line class="fc-arrow" x1="204" y1="480" x2="100" y2="480"/><text class="fc-label-yes" x="160" y="474">YES</text></g>
+      <g id="f-case3a" data-fp="jose,chris">
+        <rect class="fc-action" x="4" y="458" width="192" height="52"/>
+        <text class="fc-title" x="100" y="474" text-anchor="middle" style="fill:#2563eb;font-size:9px">Case 3a: New head</text>
+        <text class="fc-code" x="100" y="488" text-anchor="middle">newnode→next=head</text>
+        <text class="fc-code" x="100" y="500" text-anchor="middle">head=newnode</text>
+        <text class="fc-line-num" x="200" y="468">L109–110</text>
+      </g>
+      <g id="fa-c3ar" data-fp="jose,chris"><polyline class="fc-arrow" points="4,480 -4,480 -4,1332 295,1332" fill="none"/></g>
+      <!-- NO → init compare2 -->
+      <g id="fa-d3n" data-fp="mary,jay"><line class="fc-arrow" x1="340" y1="524" x2="340" y2="550"/><text class="fc-label-no" x="347" y="540">NO</text></g>
+
+      <!-- compare2=NULL -->
+      <g id="f-initc2" data-fp="mary,jay">
+        <rect class="fc-action" x="245" y="550" width="190" height="32"/>
+        <text class="fc-title" x="340" y="570" text-anchor="middle">compare2 = NULL</text>
+        <text class="fc-line-num" x="440" y="564">L115</text>
+      </g>
+      <g id="fa4" data-fp="mary,jay"><line class="fc-arrow" x1="340" y1="582" x2="340" y2="612"/></g>
+
+      <!-- WHILE LOOP -->
+      <g id="f-while" data-fp="mary,jay">
+        <polygon class="fc-decision" points="340,612 506,664 340,716 174,664"/>
+        <text class="fc-title" x="340" y="652" text-anchor="middle">pain≤compare→pain</text>
+        <text class="fc-title" x="340" y="666" text-anchor="middle">&amp;&amp; next!=NULL?</text>
+        <text class="fc-line-num" x="511" y="660">L116</text>
+      </g>
+      <!-- YES → loop body -->
+      <g id="fa-why" data-fp="mary,jay"><line class="fc-arrow" x1="506" y1="664" x2="588" y2="664"/><text class="fc-label-yes" x="520" y="658">YES</text></g>
+      <g id="f-advance" data-fp="mary,jay">
+        <rect class="fc-loop" x="588" y="640" width="82" height="48" rx="5"/>
+        <text class="fc-title" x="629" y="656" text-anchor="middle" style="font-size:8px">compare2=</text>
+        <text class="fc-title" x="629" y="666" text-anchor="middle" style="font-size:8px">compare</text>
+        <text class="fc-title" x="629" y="678" text-anchor="middle" style="font-size:8px">compare=→next</text>
+        <text class="fc-line-num" x="629" y="634" text-anchor="middle">L119–120</text>
+      </g>
+      <g id="fa-loop" data-fp="mary,jay"><polyline class="fc-arrow" points="629,640 629,600 340,600 340,612" fill="none"/></g>
+      <!-- NO → D4 -->
+      <g id="fa-whn" data-fp="mary,jay"><line class="fc-arrow" x1="340" y1="716" x2="340" y2="756"/><text class="fc-label-no" x="347" y="740">NO</text></g>
+
+      <!-- D4: pain > compare? -->
+      <g id="f-d4" data-fp="mary,jay">
+        <polygon class="fc-decision" points="340,756 476,802 340,848 204,802"/>
+        <text class="fc-title" x="340" y="796" text-anchor="middle">pain>compare→pain?</text>
+        <text class="fc-line-num" x="481" y="798">L126</text>
+      </g>
+      <!-- YES → case3bi -->
+      <g id="fa-d4y" data-fp="mary"><line class="fc-arrow" x1="204" y1="802" x2="100" y2="802"/><text class="fc-label-yes" x="160" y="796">YES</text></g>
+      <g id="f-case3bi" data-fp="mary">
+        <rect class="fc-action" x="4" y="778" width="192" height="56"/>
+        <text class="fc-title" x="100" y="794" text-anchor="middle" style="fill:#7c3aed;font-size:9px">Case 3b-i: Mid-list</text>
+        <text class="fc-code" x="100" y="808" text-anchor="middle">compare2→next=newnode</text>
+        <text class="fc-code" x="100" y="820" text-anchor="middle">newnode→next=compare</text>
+        <text class="fc-line-num" x="200" y="788">L128–129</text>
+      </g>
+      <g id="fa-c3bir" data-fp="mary"><line class="fc-arrow" x1="100" y1="834" x2="100" y2="1332"/><line class="fc-arrow" x1="100" y1="1332" x2="295" y2="1332"/></g>
+      <!-- NO → D5 -->
+      <g id="fa-d4n" data-fp="jay"><line class="fc-arrow" x1="340" y1="848" x2="340" y2="888"/><text class="fc-label-no" x="347" y="872">NO</text></g>
+
+      <!-- D5: at tail? -->
+      <g id="f-d5" data-fp="jay">
+        <polygon class="fc-decision" points="340,888 506,942 340,996 174,942"/>
+        <text class="fc-title" x="340" y="932" text-anchor="middle">next==NULL &amp;&amp;</text>
+        <text class="fc-title" x="340" y="946" text-anchor="middle">compare→pain>=pain?</text>
+        <text class="fc-line-num" x="511" y="938">L136</text>
+      </g>
+      <!-- YES → case3bii -->
+      <g id="fa-d5y" data-fp="jay"><line class="fc-arrow" x1="340" y1="996" x2="340" y2="1030"/><text class="fc-label-yes" x="347" y="1018">YES</text></g>
+      <g id="f-case3bii" data-fp="jay">
+        <rect class="fc-action" x="228" y="1030" width="224" height="56"/>
+        <text class="fc-title" x="340" y="1046" text-anchor="middle" style="fill:#0d9488;font-size:9px">Case 3b-ii: Append tail</text>
+        <text class="fc-code" x="340" y="1060" text-anchor="middle">newnode→next=NULL</text>
+        <text class="fc-code" x="340" y="1074" text-anchor="middle">compare→next=newnode</text>
+        <text class="fc-line-num" x="457" y="1042">L138–139</text>
+      </g>
+      <g id="fa-c3biir" data-fp="jay"><line class="fc-arrow" x1="340" y1="1086" x2="340" y2="1312"/></g>
+      <!-- NO → case3biii -->
+      <g id="fa-d5n" data-fp=""><line class="fc-arrow" x1="506" y1="942" x2="588" y2="942"/><text class="fc-label-no" x="520" y="936">NO</text></g>
+      <g id="f-case3biii" data-fp="">
+        <rect class="fc-action" x="588" y="916" width="82" height="56" rx="5"/>
+        <text class="fc-title" x="629" y="934" text-anchor="middle" style="font-size:7px;fill:#d97706">Case 3b-iii</text>
+        <text class="fc-code" x="629" y="948" text-anchor="middle" style="font-size:6.5px">newnode→next</text>
+        <text class="fc-code" x="629" y="958" text-anchor="middle" style="font-size:6.5px">=compare</text>
+        <text class="fc-line-num" x="629" y="908" text-anchor="middle">L145–146</text>
+      </g>
+      <g id="fa-c3biiir" data-fp=""><polyline class="fc-arrow" points="629,972 629,1332 385,1332" fill="none"/></g>
+
+      <!-- RETURN TRUE -->
+      <g id="f-return" data-fp="jack,jose,chris,mary,jay">
+        <rect class="fc-terminal" x="295" y="1312" width="90" height="36" rx="18"/>
+        <text class="fc-title" x="340" y="1334" text-anchor="middle" style="fill:#16a34a;font-size:9px">return true</text>
+        <text class="fc-line-num" x="340" y="1356" text-anchor="middle">L159</text>
+      </g>
+
+      <!-- Side labels -->
+      <rect x="2" y="262" width="3" height="84" rx="1.5" fill="#16a34a" opacity="0.5"/>
+      <rect x="2" y="440" width="3" height="84" rx="1.5" fill="#2563eb" opacity="0.5"/>
+      <rect x="2" y="760" width="3" height="84" rx="1.5" fill="#7c3aed" opacity="0.5"/>
+
+      </g>
+    </svg>
+  </div>
+  <div class="pr-legend">
+    <div class="pr-legend-item"><div class="plg-diamond"></div>Decision</div>
+    <div class="pr-legend-item"><div class="plg-rect"></div>Action</div>
+    <div class="pr-legend-item"><div class="plg-pill"></div>Terminal</div>
+    <div class="pr-legend-item"><div class="plg-loop"></div>Loop body</div>
+  </div>
+</div>
+
+</div><!-- end dashboard -->
+
+<div class="sync-badge" id="syncBadge">Synced → flowchart</div>
+
+<script>
+// ===============================
+//  LEFT PANEL: POINTER TRACE
+// ===============================
+const MAIN=[
+{label:'Init',subs:[{code:'<span class="kw">ERmanager</span> *waiting_room = <span class="kw">new</span> ERmanager;',desc:'Constructor runs. <span class="hl">head = NULL</span>. Waiting room empty.',list:[],resultList:null,compareIdx:-1,compare2Idx:-1,newNode:null,console:['ERmanager created. head = NULL'],fcPath:'none'}]},
+{label:'Jack(5)',subs:[
+  {code:'waiting_room-><span class="kw">check_in</span>(<span class="str">"Jack"</span>,<span class="num">5</span>);',desc:'New node: <span class="nm">Jack</span>(<span class="pn">5</span>). <code>head==NULL</code>? <span class="tr">TRUE</span> → <span class="hl">Case 2</span>',list:[],resultList:null,compareIdx:-1,compare2Idx:-1,newNode:{name:'Jack',pain:5},console:[],fcPath:'jack'},
+  {code:'newnode->next=head; <span class="cmt">// NULL</span><br>head=newnode;',desc:'<span class="nm">Jack</span> becomes head. No <span class="cp">compare</span>/<span class="c2">compare2</span> needed.',list:[{name:'Jack',pain:5}],resultList:true,compareIdx:-1,compare2Idx:-1,newNode:null,newIdx:0,console:['Jack (5) -> End of waiting room list for now!'],fcPath:'jack'}
+]},
+{label:'Jose(6)',subs:[
+  {code:'waiting_room-><span class="kw">check_in</span>(<span class="str">"Jose"</span>,<span class="num">6</span>);',desc:'New: <span class="nm">Jose</span>(<span class="pn">6</span>). head≠NULL → Case 3. <span class="cp">compare=head</span> (Jack).',list:[{name:'Jack',pain:5}],resultList:null,compareIdx:0,compare2Idx:-1,newNode:{name:'Jose',pain:6},console:['Jose 6'],fcPath:'jose'},
+  {code:'<span class="kw">if</span>(pain>compare->pain) <span class="cmt">// 6>5?</span> → <span class="tr">TRUE</span>',desc:'<span class="pn">6</span> > <span class="cp">compare</span>→pain <span class="pn">5</span> → <span class="hl">Case 3a: insert at front.</span>',list:[{name:'Jack',pain:5}],resultList:null,compareIdx:0,compare2Idx:-1,newNode:{name:'Jose',pain:6},console:['Jose 6'],fcPath:'jose'},
+  {code:'newnode->next=head; head=newnode;',desc:'<span class="nm">Jose</span>(<span class="pn">6</span>) is now head → Jack(<span class="pn">5</span>).',list:[{name:'Jose',pain:6},{name:'Jack',pain:5}],resultList:true,compareIdx:-1,compare2Idx:-1,newNode:null,newIdx:0,console:['Jose 6','Jose (6) -> Jack (5) -> End of waiting room list for now!'],fcPath:'jose'}
+]},
+{label:'Chris(10)',subs:[
+  {code:'waiting_room-><span class="kw">check_in</span>(<span class="str">"Chris"</span>,<span class="num">10</span>);',desc:'New: <span class="nm">Chris</span>(<span class="pn">10</span>). <span class="cp">compare=head</span> (Jose).',list:[{name:'Jose',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:0,compare2Idx:-1,newNode:{name:'Chris',pain:10},console:['Chris 10'],fcPath:'chris'},
+  {code:'<span class="kw">if</span>(pain>compare->pain) <span class="cmt">// 10>6?</span> → <span class="tr">TRUE</span>',desc:'<span class="pn">10</span> > <span class="pn">6</span> → <span class="hl">Case 3a: insert at front.</span>',list:[{name:'Jose',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:0,compare2Idx:-1,newNode:{name:'Chris',pain:10},console:['Chris 10'],fcPath:'chris'},
+  {code:'newnode->next=head; head=newnode;',desc:'<span class="nm">Chris</span>(<span class="pn">10</span>) is new head. Highest priority.',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Jack',pain:5}],resultList:true,compareIdx:-1,compare2Idx:-1,newNode:null,newIdx:0,console:['Chris 10','Chris (10) -> Jose (6) -> Jack (5) -> End of waiting room list for now!'],fcPath:'chris'}
+]},
+{label:'Mary(6)',subs:[
+  {code:'<span class="kw">check_in</span>(<span class="str">"Mary"</span>,<span class="num">6</span>);',desc:'New: <span class="nm">Mary</span>(<span class="pn">6</span>). <span class="cp">compare=head</span> (Chris).',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:0,compare2Idx:-1,newNode:{name:'Mary',pain:6},console:['Mary 6'],fcPath:'mary'},
+  {code:'<span class="kw">if</span>(pain>compare->pain) <span class="cmt">// 6>10?</span> → <span class="fl">FALSE</span>',desc:'<span class="fl">NO</span> → enter else. <span class="c2">compare2=NULL</span>. Enter while loop.',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:0,compare2Idx:-1,newNode:{name:'Mary',pain:6},console:['Mary 6'],fcPath:'mary'},
+  {code:'<span class="kw">while</span>(...) <span class="cmt">// 6≤10 && next≠NULL?</span> → <span class="tr">TRUE</span>',desc:'Enter loop body.',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:0,compare2Idx:-1,newNode:{name:'Mary',pain:6},console:['Mary 6'],fcPath:'mary'},
+  {code:'compare2=compare; <span class="cmt">// Chris</span><br>compare=compare->next; <span class="cmt">// Jose</span>',desc:'<span class="c2">compare2</span>→Chris. <span class="cp">compare</span>→Jose.',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:1,compare2Idx:0,newNode:{name:'Mary',pain:6},console:['Mary 6'],fcPath:'mary'},
+  {code:'<span class="kw">while</span>(...) <span class="cmt">// 6≤6 && next≠NULL?</span> → <span class="tr">TRUE</span>',desc:'Loop continues.',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:1,compare2Idx:0,newNode:{name:'Mary',pain:6},console:['Mary 6'],fcPath:'mary'},
+  {code:'compare2=compare; <span class="cmt">// Jose</span><br>compare=compare->next; <span class="cmt">// Jack</span>',desc:'<span class="c2">compare2</span>→Jose. <span class="cp">compare</span>→Jack.',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:2,compare2Idx:1,newNode:{name:'Mary',pain:6},console:['Mary 6'],fcPath:'mary'},
+  {code:'<span class="kw">while</span>(...) <span class="cmt">// 6≤5?</span> → <span class="fl">FALSE</span> — exit',desc:'<span class="hl">Exit while.</span> <span class="cp">compare</span>=Jack, <span class="c2">compare2</span>=Jose.',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:2,compare2Idx:1,newNode:{name:'Mary',pain:6},console:['Mary 6'],fcPath:'mary'},
+  {code:'<span class="kw">if</span>(pain>compare->pain) <span class="cmt">// 6>5?</span> → <span class="tr">TRUE</span>',desc:'→ <span class="hl">Case 3b-i:</span> insert between <span class="c2">compare2</span>(Jose) and <span class="cp">compare</span>(Jack).',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:2,compare2Idx:1,newNode:{name:'Mary',pain:6},console:['Mary 6'],fcPath:'mary'},
+  {code:'compare2->next=newnode; newnode->next=compare;',desc:'<span class="hl">Inserted!</span> <span class="nm">Mary</span>(<span class="pn">6</span>) between Jose and Jack. FIFO among ties.',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],resultList:true,compareIdx:-1,compare2Idx:-1,newNode:null,newIdx:2,console:['Mary 6','Chris (10) -> Jose (6) -> Mary (6) -> Jack (5) -> End of waiting room list for now!'],fcPath:'mary'}
+]},
+{label:'Jay(2)',subs:[
+  {code:'<span class="kw">check_in</span>(<span class="str">"Jay"</span>,<span class="num">2</span>);',desc:'New: <span class="nm">Jay</span>(<span class="pn">2</span>). <span class="cp">compare=head</span> (Chris).',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:0,compare2Idx:-1,newNode:{name:'Jay',pain:2},console:['Jay 2'],fcPath:'jay'},
+  {code:'<span class="kw">if</span>(pain>compare->pain) <span class="cmt">// 2>10?</span> → <span class="fl">FALSE</span>',desc:'<span class="fl">NO</span> → <span class="c2">compare2=NULL</span>. Enter while.',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:0,compare2Idx:-1,newNode:{name:'Jay',pain:2},console:['Jay 2'],fcPath:'jay'},
+  {code:'<span class="kw">while</span>(...) <span class="cmt">// 2≤10 && next≠NULL</span> → <span class="tr">TRUE</span>',desc:'Enter loop.',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:0,compare2Idx:-1,newNode:{name:'Jay',pain:2},console:['Jay 2'],fcPath:'jay'},
+  {code:'compare2=compare; <span class="cmt">//Chris</span><br>compare=→next; <span class="cmt">//Jose</span>',desc:'<span class="c2">compare2</span>→Chris. <span class="cp">compare</span>→Jose.',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:1,compare2Idx:0,newNode:{name:'Jay',pain:2},console:['Jay 2'],fcPath:'jay'},
+  {code:'<span class="kw">while</span>(...) <span class="cmt">// 2≤6</span> → <span class="tr">TRUE</span>',desc:'Continue.',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:1,compare2Idx:0,newNode:{name:'Jay',pain:2},console:['Jay 2'],fcPath:'jay'},
+  {code:'compare2=compare; <span class="cmt">//Jose</span><br>compare=→next; <span class="cmt">//Mary</span>',desc:'<span class="c2">compare2</span>→Jose. <span class="cp">compare</span>→Mary.',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:2,compare2Idx:1,newNode:{name:'Jay',pain:2},console:['Jay 2'],fcPath:'jay'},
+  {code:'<span class="kw">while</span>(...) <span class="cmt">// 2≤6</span> → <span class="tr">TRUE</span>',desc:'Continue.',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:2,compare2Idx:1,newNode:{name:'Jay',pain:2},console:['Jay 2'],fcPath:'jay'},
+  {code:'compare2=compare; <span class="cmt">//Mary</span><br>compare=→next; <span class="cmt">//Jack</span>',desc:'<span class="c2">compare2</span>→Mary. <span class="cp">compare</span>→Jack.',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:3,compare2Idx:2,newNode:{name:'Jay',pain:2},console:['Jay 2'],fcPath:'jay'},
+  {code:'<span class="kw">while</span>(...) <span class="cmt">// 2≤5 && next==NULL</span> → <span class="fl">FALSE</span>',desc:'Jack→next==NULL → <span class="hl">exit while.</span>',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:3,compare2Idx:2,newNode:{name:'Jay',pain:2},console:['Jay 2'],fcPath:'jay'},
+  {code:'<span class="kw">if</span>(pain>compare->pain) <span class="cmt">// 2>5?</span> → <span class="fl">FALSE</span>',desc:'Enter outer else.',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:3,compare2Idx:2,newNode:{name:'Jay',pain:2},console:['Jay 2'],fcPath:'jay'},
+  {code:'<span class="kw">if</span>(next==NULL && pain>=pain) → <span class="tr">TRUE</span>',desc:'→ <span class="hl">Case 3b-ii: append at tail.</span>',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5}],resultList:null,compareIdx:3,compare2Idx:2,newNode:{name:'Jay',pain:2},console:['Jay 2'],fcPath:'jay'},
+  {code:'newnode->next=NULL; compare->next=newnode;',desc:'<span class="hl">Appended!</span> <span class="nm">Jay</span>(<span class="pn">2</span>) is the new tail.',list:[{name:'Chris',pain:10},{name:'Jose',pain:6},{name:'Mary',pain:6},{name:'Jack',pain:5},{name:'Jay',pain:2}],resultList:true,compareIdx:-1,compare2Idx:-1,newNode:null,newIdx:4,console:['Jay 2','Chris (10) -> Jose (6) -> Mary (6) -> Jack (5) -> Jay (2) -> End of waiting room list for now!'],fcPath:'jay'}
+]}
+];
+
+let tMain=0,tSub=0;
+function painColor(p){if(p<=2)return'#6c9bff';if(p<=4)return'#4ecdc4';if(p<=6)return'#ffe66d';if(p<=8)return'#ffa64d';return'#ff6b6b';}
+function tArrow(d){const s=d?' stroke-dasharray="3,2"':'';return`<svg viewBox="0 0 36 14"><line x1="0" y1="7" x2="28" y2="7" stroke="#4a5568" stroke-width="1.5"${s}/><polygon points="28,3.5 36,7 28,10.5" fill="#4a5568"/></svg>`;}
+
+function tRenderTabs(){document.getElementById('tMainTabs').innerHTML=MAIN.map((m,i)=>`<button class="t-main-tab ${i===tMain?'active':''}" onclick="tGoMain(${i})">${m.label}</button>`).join('');}
+
+function tRenderList(s){
+  const a=document.getElementById('tListArea');
+  const l=s.list;
+  if(!l.length){a.innerHTML=`<div class="t-head-label">head →</div><div class="t-empty-state">NULL — empty</div>`;if(s.newNode)a.innerHTML+=`<div class="t-floating-new">newnode: ${s.newNode.name}(${s.newNode.pain})</div>`;return;}
+  let h='<div class="t-head-label">head →</div>';
+  if(s.newNode)h+=`<div class="t-floating-new">newnode: ${s.newNode.name}(${s.newNode.pain})</div>`;
+  l.forEach((n,i)=>{
+    const isN=s.resultList&&i===s.newIdx,isH=i===0&&!isN,iC=s.compareIdx===i,i2=s.compare2Idx===i;
+    let bc='';if(isN)bc='new-node';else if(iC&&i2)bc='both-node';else if(iC)bc='compare-node';else if(i2)bc='compare2-node';else if(isH)bc='head-node';
+    const c=painColor(n.pain),nx=i<l.length-1?l[i+1].name:'NULL';
+    h+=`<div class="t-node">`;
+    if(iC)h+=`<div class="t-ptr-label t-ptr-compare">compare</div>`;
+    if(i2)h+=`<div class="t-ptr-label t-ptr-compare2">compare2</div>`;
+    h+=`<div class="t-node-box ${bc}"><div class="t-node-name">${n.name}</div><div class="t-node-pain"><span style="color:${c}">${n.pain}</span>/10</div><div class="t-pain-bar-wrap"><div class="t-pain-bar" style="width:${n.pain*8}px;background:${c}"></div></div><div class="t-node-fields"><div class="t-field"><span class="t-field-label">data</span>${n.name},${n.pain}</div><div class="t-field"><span class="t-field-label">next</span>${nx==='NULL'?'<span style="color:#555e73">NULL</span>':'→'+nx}</div></div></div></div>`;
+    if(i<l.length-1)h+=`<div class="t-arrow">${tArrow(false)}</div>`;
+    else h+=`<div class="t-arrow">${tArrow(true)}</div><div class="t-null-node">NULL</div>`;
+  });
+  a.innerHTML=h;
+}
+
+function tRender(){
+  const m=MAIN[tMain],s=m.subs[tSub];
+  tRenderTabs();
+  document.getElementById('tSubNum').textContent=tSub+1;
+  document.getElementById('tSubTotal').textContent=m.subs.length;
+  document.getElementById('tCodeBox').innerHTML=s.code;
+  document.getElementById('tDescBox').innerHTML=s.desc;
+  tRenderList(s);
+  document.getElementById('tConsole').innerHTML=s.console.map(l=>`<div><span class="pr">$</span> ${l}</div>`).join('');
+  document.getElementById('tPrevBtn').disabled=tMain===0&&tSub===0;
+  document.getElementById('tNextBtn').disabled=tMain===MAIN.length-1&&tSub===m.subs.length-1;
+  // Auto-sync flowchart
+  if(s.fcPath)fcHL(s.fcPath,true);
+}
+function tGoMain(i){tMain=i;tSub=0;tRender();}
+function tNext(){const m=MAIN[tMain];if(tSub<m.subs.length-1)tSub++;else if(tMain<MAIN.length-1){tMain++;tSub=0;}tRender();}
+function tPrev(){if(tSub>0)tSub--;else if(tMain>0){tMain--;tSub=MAIN[tMain].subs.length-1;}tRender();}
+
+// ===============================
+//  RIGHT PANEL: FLOWCHART
+// ===============================
+function fcHL(path,fromSync){
+  document.querySelectorAll('.pr-path-btn').forEach(b=>b.className='pr-path-btn');
+  const btn=document.getElementById('fc-btn-'+path);
+  if(btn)btn.classList.add('pa-'+path);
+  document.querySelectorAll('svg g[id^="f"]').forEach(g=>{
+    const ps=(g.dataset.fp||'').split(',');
+    g.classList.remove('hl-on','hl-reject','hl-jack','hl-jose','hl-chris','hl-mary','hl-jay','dimmed');
+    if(path==='none')return;
+    if(ps.includes(path)){g.classList.add('hl-on','hl-'+path);}
+    else g.classList.add('dimmed');
+  });
+  if(fromSync){const b=document.getElementById('syncBadge');b.classList.add('show');setTimeout(()=>b.classList.remove('show'),800);}
+}
+
+// ===============================
+//  RESIZER
+// ===============================
+(function(){
+  const r=document.getElementById('resizer'),pl=document.getElementById('panelLeft'),pr=document.getElementById('panelRight');
+  let dragging=false,startX,startLW;
+  r.addEventListener('mousedown',e=>{dragging=true;startX=e.clientX;startLW=pl.offsetWidth;r.classList.add('dragging');e.preventDefault();});
+  document.addEventListener('mousemove',e=>{if(!dragging)return;const dx=e.clientX-startX;const nw=Math.max(280,Math.min(startLW+dx,window.innerWidth-280));pl.style.flex='none';pl.style.width=nw+'px';pr.style.flex='1';});
+  document.addEventListener('mouseup',()=>{dragging=false;r.classList.remove('dragging');});
+})();
+
+// Keyboard
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')tNext();if(e.key==='ArrowLeft')tPrev();});
+
+// Init
+tRender();
+fcHL('none');
+</script>
+</body>
+</html>

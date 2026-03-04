@@ -110,4 +110,4 @@ This dashboard supports a teaching demo inspired by:
 
 > Farghally, M., Seyam, M., & Ellis, M. (2025). *Embedded Ethics in CS: Experiences with Integrating Ethics Assignments in Sophomore, Junior, and Senior Level Courses.* Proceedings of the 30th ACM Conference on Innovation and Technology in Computer Science Education (ITiCSE 2025). https://doi.org/10.1145/3724363.3729054
 
-The C++ code simulates a priority queue via singly connected (and sorted) linked-list insertion — the same data structure context used in the paper's CS ethics assignment.
+The C++ code simulates a priority queue via singly connected (and sorted) linked-list insertion.

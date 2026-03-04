@@ -1,8 +1,8 @@
-# ER Check-In Teaching Dashboard — README
+# ER Check-In Using Singly Connected Linked Lists — README
 
 ## Overview
 
-This single-file HTML dashboard is a teaching tool for a **20-minute demo** on singly-linked lists, sorted insertion (priority queues), and embedded ethics in computer science. It accompanies a C++ program (`ERmanager`) that simulates an Emergency Room patient check-in system where patients are prioritized by self-reported pain level.
+This single-file HTML dashboard is a teaching tool for a **18-minute demo** on singly-linked lists, sorted insertion (priority queues), and embedded ethics in computer science. It accompanies a C++ program (`ERmanager`) that simulates an Emergency Room patient check-in system where patients are prioritized by self-reported pain level.
 
 The dashboard is designed to be opened in any modern browser — no installation, no dependencies, no server required. Just open `er_teaching_dashboard.html` and present.
 
@@ -110,4 +110,4 @@ This dashboard supports a teaching demo inspired by:
 
 > Farghally, M., Seyam, M., & Ellis, M. (2025). *Embedded Ethics in CS: Experiences with Integrating Ethics Assignments in Sophomore, Junior, and Senior Level Courses.* Proceedings of the 30th ACM Conference on Innovation and Technology in Computer Science Education (ITiCSE 2025). https://doi.org/10.1145/3724363.3729054
 
-The C++ code simulates a priority queue via sorted linked-list insertion — the same data structure context used in the paper's CS3 ethics assignment on discrimination in priority queues.
+The C++ code simulates a priority queue via singly connected (and sorted) linked-list insertion — the same data structure context used in the paper's CS ethics assignment.
